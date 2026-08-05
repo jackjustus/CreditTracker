@@ -1,4 +1,4 @@
-package ride
+package views
 
 import (
 	"github.com/jackjustus/credittracker/backend/internal/gen/db"

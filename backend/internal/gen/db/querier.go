@@ -6,10 +6,14 @@ package db
 
 import (
 	"context"
+
+	"github.com/google/uuid"
 )
 
 type Querier interface {
+	CreateRideEvent(ctx context.Context, arg CreateRideEventParams) error
 	GetRideEvents(ctx context.Context) ([]GetRideEventsRow, error)
+	HydrateCoaster(ctx context.Context, id uuid.UUID) (HydrateCoasterRow, error)
 }
 
 var _ Querier = (*Queries)(nil)

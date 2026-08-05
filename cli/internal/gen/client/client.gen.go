@@ -69,14 +69,8 @@ type WithName struct {
 
 // LogRideParams defines parameters for LogRide.
 type LogRideParams struct {
-	// CoasterName the name of the coaster you are logging a ride on
-	CoasterName string `form:"coasterName" json:"coasterName"`
-
-	// CoasterUUID the uuid of the coaster you are logging a ride on
-	CoasterUUID UUID `form:"coasterUUID" json:"coasterUUID"`
-
-	// Timestamp the time at which the ride is being recorded
-	Timestamp string `form:"timestamp" json:"timestamp"`
+	// Timestamp the time at which the views is being recorded
+	Timestamp time.Time `form:"timestamp" json:"timestamp"`
 }
 
 // ListRidesParams defines parameters for ListRides.
@@ -167,10 +161,10 @@ type ClientInterface interface {
 	// Corresponds with GET /credits (the `ListCredits` operationId).
 	ListCredits(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// LogRide log a single ride on a coaster. must populate either name of coaster or coaster id.
+	// LogRide log a single views on a coaster. must populate either name of coaster or coaster id.
 	//
-	// Corresponds with POST /log (the `LogRide` operationId).
-	LogRide(ctx context.Context, params *LogRideParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// Corresponds with POST /log/{coasterID} (the `LogRide` operationId).
+	LogRide(ctx context.Context, coasterID UUID, params *LogRideParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListRides List logged rides, most recent first
 	//
@@ -193,11 +187,11 @@ func (c *Client) ListCredits(ctx context.Context, reqEditors ...RequestEditorFn)
 	return c.Client.Do(req)
 }
 
-// LogRide log a single ride on a coaster. must populate either name of coaster or coaster id.
+// LogRide log a single views on a coaster. must populate either name of coaster or coaster id.
 //
-// Corresponds with POST /log (the `LogRide` operationId).
-func (c *Client) LogRide(ctx context.Context, params *LogRideParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewLogRideRequest(c.Server, params)
+// Corresponds with POST /log/{coasterID} (the `LogRide` operationId).
+func (c *Client) LogRide(ctx context.Context, coasterID UUID, params *LogRideParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewLogRideRequest(c.Server, coasterID, params)
 	if err != nil {
 		return nil, err
 	}
@@ -251,15 +245,22 @@ func NewListCreditsRequest(server string) (*http.Request, error) {
 }
 
 // NewLogRideRequest constructs an http.Request for the LogRide method
-func NewLogRideRequest(server string, params *LogRideParams) (*http.Request, error) {
+func NewLogRideRequest(server string, coasterID UUID, params *LogRideParams) (*http.Request, error) {
 	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "coasterID", coasterID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
 
 	serverURL, err := url.Parse(server)
 	if err != nil {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/log")
+	operationPath := fmt.Sprintf("/log/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -278,23 +279,7 @@ func NewLogRideRequest(server string, params *LogRideParams) (*http.Request, err
 		// per the OpenAPI spec (e.g. "color=blue,black,brown").
 		var rawQueryFragments []string
 
-		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "coasterName", params.CoasterName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
-			return nil, err
-		} else {
-			for _, qp := range strings.Split(queryFrag, "&") {
-				rawQueryFragments = append(rawQueryFragments, qp)
-			}
-		}
-
-		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "coasterUUID", params.CoasterUUID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "object", Format: "uuid"}); err != nil {
-			return nil, err
-		} else {
-			for _, qp := range strings.Split(queryFrag, "&") {
-				rawQueryFragments = append(rawQueryFragments, qp)
-			}
-		}
-
-		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "timestamp", params.Timestamp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "time"}); err != nil {
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "timestamp", params.Timestamp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "date-time"}); err != nil {
 			return nil, err
 		} else {
 			for _, qp := range strings.Split(queryFrag, "&") {
@@ -433,12 +418,12 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /credits (the `ListCredits` operationId).
 	ListCreditsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListCreditsResponse, error)
 
-	// LogRideWithResponse log a single ride on a coaster. must populate either name of coaster or coaster id.
+	// LogRideWithResponse log a single views on a coaster. must populate either name of coaster or coaster id.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
-	// Corresponds with POST /log (the `LogRide` operationId).
-	LogRideWithResponse(ctx context.Context, params *LogRideParams, reqEditors ...RequestEditorFn) (*LogRideResponse, error)
+	// Corresponds with POST /log/{coasterID} (the `LogRide` operationId).
+	LogRideWithResponse(ctx context.Context, coasterID UUID, params *LogRideParams, reqEditors ...RequestEditorFn) (*LogRideResponse, error)
 
 	// ListRidesWithResponse List logged rides, most recent first
 	//
@@ -584,13 +569,13 @@ func (c *ClientWithResponses) ListCreditsWithResponse(ctx context.Context, reqEd
 	return ParseListCreditsResponse(rsp)
 }
 
-// LogRideWithResponse log a single ride on a coaster. must populate either name of coaster or coaster id.
+// LogRideWithResponse log a single views on a coaster. must populate either name of coaster or coaster id.
 //
 // Returns a wrapper object for the known response body format(s).
 //
-// Corresponds with POST /log (the `LogRide` operationId).
-func (c *ClientWithResponses) LogRideWithResponse(ctx context.Context, params *LogRideParams, reqEditors ...RequestEditorFn) (*LogRideResponse, error) {
-	rsp, err := c.LogRide(ctx, params, reqEditors...)
+// Corresponds with POST /log/{coasterID} (the `LogRide` operationId).
+func (c *ClientWithResponses) LogRideWithResponse(ctx context.Context, coasterID UUID, params *LogRideParams, reqEditors ...RequestEditorFn) (*LogRideResponse, error) {
+	rsp, err := c.LogRide(ctx, coasterID, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}

@@ -7,7 +7,28 @@ package db
 
 import (
 	"context"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+const createRideEvent = `-- name: CreateRideEvent :exec
+INSERT INTO ride_events (coaster_id, created_at)
+VALUES (
+        $1,
+        $2
+       )
+`
+
+type CreateRideEventParams struct {
+	CoasterID uuid.UUID
+	CreatedAt pgtype.Timestamptz
+}
+
+func (q *Queries) CreateRideEvent(ctx context.Context, arg CreateRideEventParams) error {
+	_, err := q.db.Exec(ctx, createRideEvent, arg.CoasterID, arg.CreatedAt)
+	return err
+}
 
 const getRideEvents = `-- name: GetRideEvents :many
 SELECT ride_events.coaster_id, ride_events.created_at, coasters.id, coasters.park_id, coasters.name, coasters.manufactured_at, coasters.external_id, coasters.external_source, coasters.created_at, coasters.updated_at

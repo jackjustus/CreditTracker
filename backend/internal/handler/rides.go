@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+
 	api "github.com/jackjustus/credittracker/backend/internal/gen/openapi"
 
 	"github.com/labstack/echo/v4"
