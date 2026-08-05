@@ -53,6 +53,39 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RidePage"
+  /log:
+    post:
+      operationId: logRide
+      summary: log a single ride on a coaster. must populate either name of coaster or coaster id.
+      parameters:
+        - name: coasterName
+          in: query
+          required: true
+          description: the name of the coaster you are logging a ride on
+          schema:
+            type: string
+        - name: coasterUUID
+          in: query
+          required: true
+          description: the uuid of the coaster you are logging a ride on
+          schema:
+            type: object
+            $ref: "#/components/schemas/UUID"
+        - name: timestamp
+          in: query
+          required: true
+          description: the time at which the ride is being recorded
+          schema:
+            type: string
+            format: time
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ride"
+
 components:
   schemas:
 

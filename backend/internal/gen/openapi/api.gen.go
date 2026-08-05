@@ -66,6 +66,18 @@ type WithName struct {
 	Name string `json:"name"`
 }
 
+// LogRideParams defines parameters for LogRide.
+type LogRideParams struct {
+	// CoasterName the name of the coaster you are logging a ride on
+	CoasterName string `form:"coasterName" json:"coasterName"`
+
+	// CoasterUUID the uuid of the coaster you are logging a ride on
+	CoasterUUID UUID `form:"coasterUUID" json:"coasterUUID"`
+
+	// Timestamp the time at which the ride is being recorded
+	Timestamp string `form:"timestamp" json:"timestamp"`
+}
+
 // ListRidesParams defines parameters for ListRides.
 type ListRidesParams struct {
 	// Limit Maximum rides to return
@@ -80,6 +92,9 @@ type ServerInterface interface {
 	// ListCredits List distinct coasters ridden, one entry per coaster
 	// (GET /credits)
 	ListCredits(ctx echo.Context) error
+	// LogRide log a single ride on a coaster. must populate either name of coaster or coaster id.
+	// (POST /log)
+	LogRide(ctx echo.Context, params LogRideParams) error
 	// ListRides List logged rides, most recent first
 	// (GET /rides)
 	ListRides(ctx echo.Context, params ListRidesParams) error
@@ -96,6 +111,38 @@ func (w *ServerInterfaceWrapper) ListCredits(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.ListCredits(ctx)
+	return err
+}
+
+// LogRide converts echo context to params.
+func (w *ServerInterfaceWrapper) LogRide(ctx echo.Context) error {
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params LogRideParams
+	// ------------- Required query parameter "coasterName" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "coasterName", ctx.QueryParams(), &params.CoasterName, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter coasterName: %s", err))
+	}
+
+	// ------------- Required query parameter "coasterUUID" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "coasterUUID", ctx.QueryParams(), &params.CoasterUUID, runtime.BindQueryParameterOptions{Type: "object", Format: "uuid"})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter coasterUUID: %s", err))
+	}
+
+	// ------------- Required query parameter "timestamp" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "timestamp", ctx.QueryParams(), &params.Timestamp, runtime.BindQueryParameterOptions{Type: "string", Format: "time"})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter timestamp: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.LogRide(ctx, params)
 	return err
 }
 
@@ -173,6 +220,7 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 
 	router.GET(options.BaseURL+"/credits", wrapper.ListCredits, options.OperationMiddlewares["listCredits"]...)
 	router.GET(options.BaseURL+"/rides", wrapper.ListRides, options.OperationMiddlewares["listRides"]...)
+	router.POST(options.BaseURL+"/log", wrapper.LogRide, options.OperationMiddlewares["logRide"]...)
 
 }
 
@@ -186,6 +234,28 @@ type ListCreditsResponseObject interface {
 type ListCredits200JSONResponse Credits
 
 func (response ListCredits200JSONResponse) VisitListCreditsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LogRideRequestObject struct {
+	Params LogRideParams
+}
+
+type LogRideResponseObject interface {
+	VisitLogRideResponse(w http.ResponseWriter) error
+}
+
+type LogRide200JSONResponse Ride
+
+func (response LogRide200JSONResponse) VisitLogRideResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -224,6 +294,9 @@ type StrictServerInterface interface {
 	// ListCredits List distinct coasters ridden, one entry per coaster
 	// (GET /credits)
 	ListCredits(ctx context.Context, request ListCreditsRequestObject) (ListCreditsResponseObject, error)
+	// LogRide log a single ride on a coaster. must populate either name of coaster or coaster id.
+	// (POST /log)
+	LogRide(ctx context.Context, request LogRideRequestObject) (LogRideResponseObject, error)
 	// ListRides List logged rides, most recent first
 	// (GET /rides)
 	ListRides(ctx context.Context, request ListRidesRequestObject) (ListRidesResponseObject, error)
@@ -258,6 +331,31 @@ func (sh *strictHandler) ListCredits(ctx echo.Context) error {
 		return err
 	} else if validResponse, ok := response.(ListCreditsResponseObject); ok {
 		return validResponse.VisitListCreditsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// LogRide operation middleware
+func (sh *strictHandler) LogRide(ctx echo.Context, params LogRideParams) error {
+	var request LogRideRequestObject
+
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.LogRide(ctx.Request().Context(), request.(LogRideRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "LogRide")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(LogRideResponseObject); ok {
+		return validResponse.VisitLogRideResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

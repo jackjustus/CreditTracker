@@ -67,6 +67,18 @@ type WithName struct {
 	Name string `json:"name"`
 }
 
+// LogRideParams defines parameters for LogRide.
+type LogRideParams struct {
+	// CoasterName the name of the coaster you are logging a ride on
+	CoasterName string `form:"coasterName" json:"coasterName"`
+
+	// CoasterUUID the uuid of the coaster you are logging a ride on
+	CoasterUUID UUID `form:"coasterUUID" json:"coasterUUID"`
+
+	// Timestamp the time at which the ride is being recorded
+	Timestamp string `form:"timestamp" json:"timestamp"`
+}
+
 // ListRidesParams defines parameters for ListRides.
 type ListRidesParams struct {
 	// Limit Maximum rides to return
@@ -155,6 +167,11 @@ type ClientInterface interface {
 	// Corresponds with GET /credits (the `ListCredits` operationId).
 	ListCredits(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// LogRide log a single ride on a coaster. must populate either name of coaster or coaster id.
+	//
+	// Corresponds with POST /log (the `LogRide` operationId).
+	LogRide(ctx context.Context, params *LogRideParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListRides List logged rides, most recent first
 	//
 	// Corresponds with GET /rides (the `ListRides` operationId).
@@ -166,6 +183,21 @@ type ClientInterface interface {
 // Corresponds with GET /credits (the `ListCredits` operationId).
 func (c *Client) ListCredits(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListCreditsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// LogRide log a single ride on a coaster. must populate either name of coaster or coaster id.
+//
+// Corresponds with POST /log (the `LogRide` operationId).
+func (c *Client) LogRide(ctx context.Context, params *LogRideParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewLogRideRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -211,6 +243,72 @@ func NewListCreditsRequest(server string) (*http.Request, error) {
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewLogRideRequest constructs an http.Request for the LogRide method
+func NewLogRideRequest(server string, params *LogRideParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/log")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "coasterName", params.CoasterName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "coasterUUID", params.CoasterUUID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "object", Format: "uuid"}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "timestamp", params.Timestamp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "time"}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -335,6 +433,13 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /credits (the `ListCredits` operationId).
 	ListCreditsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListCreditsResponse, error)
 
+	// LogRideWithResponse log a single ride on a coaster. must populate either name of coaster or coaster id.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /log (the `LogRide` operationId).
+	LogRideWithResponse(ctx context.Context, params *LogRideParams, reqEditors ...RequestEditorFn) (*LogRideResponse, error)
+
 	// ListRidesWithResponse List logged rides, most recent first
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -378,6 +483,47 @@ func (r ListCreditsResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ListCreditsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type LogRideResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Ride
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r LogRideResponse) GetJSON200() *Ride {
+	return r.JSON200
+}
+
+// GetBody returns the raw response body bytes
+func (r LogRideResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r LogRideResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r LogRideResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r LogRideResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -438,6 +584,19 @@ func (c *ClientWithResponses) ListCreditsWithResponse(ctx context.Context, reqEd
 	return ParseListCreditsResponse(rsp)
 }
 
+// LogRideWithResponse log a single ride on a coaster. must populate either name of coaster or coaster id.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /log (the `LogRide` operationId).
+func (c *ClientWithResponses) LogRideWithResponse(ctx context.Context, params *LogRideParams, reqEditors ...RequestEditorFn) (*LogRideResponse, error) {
+	rsp, err := c.LogRide(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseLogRideResponse(rsp)
+}
+
 // ListRidesWithResponse List logged rides, most recent first
 //
 // Returns a wrapper object for the known response body format(s).
@@ -467,6 +626,32 @@ func ParseListCreditsResponse(rsp *http.Response) (*ListCreditsResponse, error) 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest Credits
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseLogRideResponse parses an HTTP response from a LogRideWithResponse call
+func ParseLogRideResponse(rsp *http.Response) (*LogRideResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &LogRideResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Ride
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

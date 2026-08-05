@@ -14,17 +14,21 @@ type Coaster struct {
 	ParkID         uuid.UUID
 	Name           string
 	ManufacturedAt pgtype.Timestamptz
+	ExternalID     *string
+	ExternalSource *string
 	CreatedAt      pgtype.Timestamptz
 	UpdatedAt      pgtype.Timestamptz
 }
 
 type Park struct {
-	ID        uuid.UUID
-	Name      string
-	City      string
-	Country   string
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
+	ID             uuid.UUID
+	Name           string
+	City           string
+	Country        string
+	ExternalID     *string
+	ExternalSource *string
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
 }
 
 type RideEvent struct {

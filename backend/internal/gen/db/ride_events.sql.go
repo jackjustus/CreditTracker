@@ -10,7 +10,7 @@ import (
 )
 
 const getRideEvents = `-- name: GetRideEvents :many
-SELECT ride_events.coaster_id, ride_events.created_at, coasters.id, coasters.park_id, coasters.name, coasters.manufactured_at, coasters.created_at, coasters.updated_at
+SELECT ride_events.coaster_id, ride_events.created_at, coasters.id, coasters.park_id, coasters.name, coasters.manufactured_at, coasters.external_id, coasters.external_source, coasters.created_at, coasters.updated_at
 FROM ride_events
 JOIN coasters ON ride_events.coaster_id = coasters.id
 ORDER BY ride_events.created_at DESC
@@ -37,6 +37,8 @@ func (q *Queries) GetRideEvents(ctx context.Context) ([]GetRideEventsRow, error)
 			&i.Coaster.ParkID,
 			&i.Coaster.Name,
 			&i.Coaster.ManufacturedAt,
+			&i.Coaster.ExternalID,
+			&i.Coaster.ExternalSource,
 			&i.Coaster.CreatedAt,
 			&i.Coaster.UpdatedAt,
 		); err != nil {
