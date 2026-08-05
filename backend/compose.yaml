@@ -1,0 +1,56 @@
+services:
+  db:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: testtest
+    volumes:
+      - pgdata:/var/lib/postgresql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+
+  migrate:
+    build:
+      context: .
+      target: migrate
+    environment:
+      GOOSE_DBSTRING: postgres://postgres:testtest@db:5432/postgres?sslmode=disable
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  seed:
+    image: postgres:18
+    environment:
+      PGPASSWORD: testtest
+    volumes:
+      - ./db/seed:/seed:ro
+    command: >
+      psql -h db -U postgres -d postgres -v ON_ERROR_STOP=1 -f /seed/seed.sql
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
+  api-service:
+    build: .
+    environment:
+      DATABASE_URL: postgres://postgres:testtest@db:5432/postgres?sslmode=disable
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      seed:
+        condition: service_completed_successfully
+    ports:
+     - "8080:8080"
+
+
+volumes:
+  pgdata:

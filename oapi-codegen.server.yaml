@@ -1,0 +1,7 @@
+package: api
+output: backend/internal/gen/openapi/api.gen.go
+
+generate:
+  echo-server: true
+  strict-server: true
+  models: true

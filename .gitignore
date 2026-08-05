@@ -28,5 +28,12 @@ go.work.sum
 .env
 
 # Editor/IDE
-# .idea/
-# .vscode/
+.idea/
+.vscode/
+
+# Web frontend (TS)
+node_modules/
+web/dist/
+
+# Ingestion artifacts (regenerable)
+data/

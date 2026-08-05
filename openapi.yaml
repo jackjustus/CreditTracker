@@ -1,0 +1,144 @@
+openapi: 3.1.2
+info:
+  title: CreditTracker API
+  description: API Spec for Credit Tracker
+  version: 0.0.1
+servers:
+  - url: http://localhost:8080
+    description: Local development
+paths:
+  /credits:
+    get:
+      operationId: listCredits
+      summary: List distinct coasters ridden, one entry per coaster
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Credits"
+#      "404":
+#        description: Not Found
+#        content:
+#          application/json:
+#            schema:
+#              $ref: "#components/schemas/ErrorNotFound"
+  /rides:
+    get:
+      operationId: listRides
+      summary: List logged rides, most recent first
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: Maximum rides to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: cursor
+          in: query
+          required: false
+          description: >
+            Opaque cursor from a previous response's nextCursor. Returns rides
+            older than the one it points at.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RidePage"
+components:
+  schemas:
+
+    # Primitives
+
+    WithId:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+    WithName:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+    UUID:
+      type: string
+      format: uuid
+      x-go-type: uuid.UUID
+      x-go-type-import:
+        path: github.com/google/uuid
+    ErrorNotFound:
+      type: string
+
+    # First Class Objects
+
+    Coaster:
+      description: Reference to a coaster.
+      allOf:
+        - $ref: "#/components/schemas/WithId"
+        - $ref: "#/components/schemas/WithName"
+
+    Credit:
+      description: >
+        A coaster the rider has ridden at least once, aggregated over every
+        ride of it. The id is the coaster's id.
+      allOf:
+        - $ref: "#/components/schemas/Coaster"
+        - type: object
+          required:
+            - rideCount
+            - firstRiddenAt
+            - lastRiddenAt
+          properties:
+            rideCount:
+              type: integer
+              minimum: 1
+              description: Number of logged rides on this coaster
+            firstRiddenAt:
+              type: string
+              format: date-time
+            lastRiddenAt:
+              type: string
+              format: date-time
+    Credits:
+      type: array
+      items:
+        $ref: "#/components/schemas/Credit"
+
+    Ride:
+      description: A single logged trip on a coaster.
+      type: object
+      required:
+        - coaster
+        - riddenAt
+      properties:
+        coaster:
+          $ref: "#/components/schemas/Coaster"
+        riddenAt:
+          type: string
+          format: date-time
+    Rides:
+      type: array
+      items:
+        $ref: "#/components/schemas/Ride"
+    RidePage:
+      type: object
+      required:
+        - rides
+      properties:
+        rides:
+          $ref: "#/components/schemas/Rides"
+        nextCursor:
+          type: string
+          description: Pass as cursor to fetch the next page. Absent on the last page.

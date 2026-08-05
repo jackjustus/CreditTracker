@@ -1,0 +1,6 @@
+package: client
+output: cli/internal/gen/client/client.gen.go
+
+generate:
+  client: true
+  models: true
