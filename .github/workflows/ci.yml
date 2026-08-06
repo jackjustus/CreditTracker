@@ -55,5 +55,7 @@ jobs:
           cache-dependency-path: ${{ matrix.module }}/go.sum
       - uses: golangci/golangci-lint-action@v8
         with:
-          version: v2.6.0
+          # Must be built with a Go >= the modules' `go` directive, or it exits 3
+          # before linting anything. v2.12.2 is built with go1.26.2.
+          version: v2.12.2
           working-directory: ${{ matrix.module }}
