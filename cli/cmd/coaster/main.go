@@ -7,6 +7,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackjustus/credittracker/cli/internal/gen/client"
 	"github.com/urfave/cli/v3"
 )
@@ -40,6 +41,22 @@ func main() {
 					},
 				},
 				Action: listRides,
+			},
+			{
+				Name:      "log",
+				Usage:     "log a ride on a coaster",
+				ArgsUsage: "<coaster-id>",
+				Flags: []cli.Flag{
+					&cli.TimestampFlag{
+						Name:  "at",
+						Usage: "when the ride happened, e.g. 2026-08-06T13:45:00Z (defaults to now)",
+						Config: cli.TimestampConfig{
+							Timezone: time.Local,
+							Layouts:  []string{time.RFC3339, "2006-01-02 15:04", time.DateOnly},
+						},
+					},
+				},
+				Action: logRide,
 			},
 		},
 	}
@@ -96,6 +113,41 @@ func listRides(ctx context.Context, cmd *cli.Command) error {
 				ride.RiddenAt.Format(time.RFC3339),
 				ride.Coaster.Name)
 		}
+	})
+}
+
+func logRide(ctx context.Context, cmd *cli.Command) error {
+	if cmd.NArg() != 1 {
+		return fmt.Errorf("usage: coaster log <coaster-id>")
+	}
+	coasterID, err := uuid.Parse(cmd.Args().First())
+	if err != nil {
+		return fmt.Errorf("parsing coaster id: %w", err)
+	}
+
+	riddenAt := cmd.Timestamp("at")
+	if riddenAt.IsZero() {
+		riddenAt = time.Now()
+	}
+
+	c, err := newClient(cmd)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.LogRideWithResponse(ctx, coasterID, &client.LogRideParams{Timestamp: riddenAt})
+	if err != nil {
+		return err
+	}
+	if resp.JSON200 == nil {
+		return fmt.Errorf("logging ride: %s", resp.Status())
+	}
+
+	ride := *resp.JSON200
+	return table([]string{"RIDDEN AT", "COASTER"}, func(w *tabwriter.Writer) {
+		fmt.Fprintf(w, "%s\t%s\n",
+			ride.RiddenAt.Format(time.RFC3339),
+			ride.Coaster.Name)
 	})
 }
 
