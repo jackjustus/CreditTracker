@@ -7,7 +7,6 @@ import (
 	"github.com/jackjustus/credittracker/backend/internal/data"
 	api "github.com/jackjustus/credittracker/backend/internal/gen/openapi"
 	"github.com/jackjustus/credittracker/backend/internal/handler"
-	"github.com/labstack/echo/v4"
 )
 
 func main() {
@@ -34,5 +33,3 @@ func main() {
 		return
 	}
 }
-
-const defaultDatabaseURL = "postgres://postgres:testtest@localhost:5432/postgres?sslmode=disable"
