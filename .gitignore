@@ -36,4 +36,4 @@ node_modules/
 web/dist/
 
 # Ingestion artifacts (regenerable)
-data/
+/data/
