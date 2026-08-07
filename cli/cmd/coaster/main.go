@@ -8,6 +8,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackjustus/credittracker/cli/internal/gen/client"
 	"github.com/urfave/cli/v3"
 )
@@ -41,6 +42,22 @@ func main() {
 					},
 				},
 				Action: listRides,
+			},
+			{
+				Name:      "log",
+				Usage:     "log a ride on a coaster",
+				ArgsUsage: "<coaster-id>",
+				Flags: []cli.Flag{
+					&cli.TimestampFlag{
+						Name:  "at",
+						Usage: "when the ride happened, e.g. 2026-08-06T13:45:00Z (defaults to now)",
+						Config: cli.TimestampConfig{
+							Timezone: time.Local,
+							Layouts:  []string{time.RFC3339, "2006-01-02 15:04", time.DateOnly},
+						},
+					},
+				},
+				Action: logRide,
 			},
 		},
 	}

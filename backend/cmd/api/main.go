@@ -3,22 +3,21 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/jackjustus/credittracker/backend/internal/gen/db"
+
+	"github.com/jackjustus/credittracker/backend/internal/data"
 	api "github.com/jackjustus/credittracker/backend/internal/gen/openapi"
 	"github.com/jackjustus/credittracker/backend/internal/handler"
-	"os"
-
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
 )
 
 func main() {
-	dbc, err := dbsetup(context.Background())
+	ctx := context.Background()
+	dao, err := data.NewDAO(ctx)
 	if err != nil {
 		fmt.Print(err)
 		return
 	}
-	r := handler.NewServer(dbc)
+	r := handler.NewServer(dao)
 	e := echo.New()
 	e.HTTPErrorHandler = func(err error, c echo.Context) {
 		c.Logger().Errorf("%s %s: %v", c.Request().Method, c.Path(), err)
@@ -37,15 +36,3 @@ func main() {
 }
 
 const defaultDatabaseURL = "postgres://postgres:testtest@localhost:5432/postgres?sslmode=disable"
-
-func dbsetup(ctx context.Context) (*db.Queries, error) {
-	url := os.Getenv("DATABASE_URL")
-	if url == "" {
-		url = defaultDatabaseURL
-	}
-	pgpool, err := pgxpool.New(ctx, url)
-	if err != nil {
-		return nil, err
-	}
-	return db.New(pgpool), nil
-}

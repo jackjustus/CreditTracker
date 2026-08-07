@@ -1,11 +1,13 @@
 package handler
 
-import "github.com/jackjustus/credittracker/backend/internal/gen/db"
+import (
+	"github.com/jackjustus/credittracker/backend/internal/data"
+)
 
 type Server struct {
-	dbc *db.Queries
+	dao *data.DAO
 }
 
-func NewServer(dbc *db.Queries) Server {
-	return Server{dbc}
+func NewServer(dao *data.DAO) Server {
+	return Server{dao}
 }
