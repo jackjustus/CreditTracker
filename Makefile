@@ -12,7 +12,7 @@ export GOOSE_DRIVER := postgres
 export GOOSE_DBSTRING := $(DATABASE_URL)
 export GOOSE_MIGRATION_DIR := backend/db/migrations
 
-.PHONY: help api stop-api logs psql install tools generate check verify-gen migration
+.PHONY: help api stop-api logs psql install tools generate check lint verify-gen migration
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  \033[36m%-11s\033[0m %s\n", $$1, $$2}'
@@ -41,9 +41,16 @@ generate: ## Regenerate sqlc queries and the OpenAPI server/client
 	oapi-codegen --config=oapi-codegen.server.yaml ./openapi.yaml
 	oapi-codegen --config=oapi-codegen.client.yaml ./openapi.yaml
 
-check: ## Build and vet both modules
+# Builds and vets first: golangci-lint reports a package that does not compile
+# as an inscrutable typecheck error, so let the compiler say it plainly.
+check: ## Build, vet, and lint both modules
 	cd backend && go build ./... && go vet ./...
 	cd cli && go build ./... && go vet ./...
+	$(MAKE) lint
+
+lint: ## Run golangci-lint on both modules
+	cd backend && golangci-lint run
+	cd cli && golangci-lint run
 
 # Uses `git status --porcelain`, not `git diff`: the latter ignores untracked
 # files, so a newly generated .sql.go that was never committed slips past it.
