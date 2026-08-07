@@ -1,0 +1,15 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - errcheck      # unchecked errors — the "used row before checking err" family
+    - govet
+    - ineffassign
+    - staticcheck   # absorbs gosimple and stylecheck in v2
+    - unused
+
+  exclusions:
+    generated: lax   # never lint internal/gen/**; it is rewritten by `make generate`
+    paths:
+      - internal/gen

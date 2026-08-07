@@ -34,5 +34,3 @@ func main() {
 		return
 	}
 }
-
-const defaultDatabaseURL = "postgres://postgres:testtest@localhost:5432/postgres?sslmode=disable"

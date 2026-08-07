@@ -2,12 +2,17 @@ DATABASE_URL ?= postgres://postgres:testtest@localhost:5432/postgres?sslmode=dis
 
 COMPOSE := docker compose -f backend/compose.yaml
 
+# Pinned so `verify-gen` cannot fail on a generator version bump alone: the
+# version string is baked into every generated file's header comment.
+SQLC_VERSION ?= v1.31.1
+OAPI_VERSION ?= v2.8.0
+
 # Only the `migration` target shells out to goose; the stack migrates itself.
 export GOOSE_DRIVER := postgres
 export GOOSE_DBSTRING := $(DATABASE_URL)
 export GOOSE_MIGRATION_DIR := backend/db/migrations
 
-.PHONY: help api stop-api logs psql install generate check migration
+.PHONY: help api stop-api logs psql install tools generate check lint verify-gen migration
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  \033[36m%-11s\033[0m %s\n", $$1, $$2}'
@@ -27,15 +32,33 @@ psql: ## Open a psql shell
 install: ## Install the coaster CLI to $$GOPATH/bin
 	cd cli && go install ./cmd/coaster
 
+tools: ## Install the pinned code generators into $$GOPATH/bin
+	go install github.com/sqlc-dev/sqlc/cmd/sqlc@$(SQLC_VERSION)
+	go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@$(OAPI_VERSION)
+
 generate: ## Regenerate sqlc queries and the OpenAPI server/client
 	cd backend && sqlc generate
 	oapi-codegen --config=oapi-codegen.server.yaml ./openapi.yaml
 	oapi-codegen --config=oapi-codegen.client.yaml ./openapi.yaml
 
-check: generate ## Build, vet, and verify generated code is current
+# Builds and vets first: golangci-lint reports a package that does not compile
+# as an inscrutable typecheck error, so let the compiler say it plainly.
+check: ## Build, vet, and lint both modules
 	cd backend && go build ./... && go vet ./...
 	cd cli && go build ./... && go vet ./...
-	git diff --exit-code -- backend/internal/gen cli/internal/gen || (echo "generated code is stale: commit it" && exit 1)
+	$(MAKE) lint
+
+lint: ## Run golangci-lint on both modules
+	cd backend && golangci-lint run
+	cd cli && golangci-lint run
+
+# Uses `git status --porcelain`, not `git diff`: the latter ignores untracked
+# files, so a newly generated .sql.go that was never committed slips past it.
+verify-gen: generate check ## CI: fail if generated code is not committed
+	@test -z "$$(git status --porcelain -- backend/internal/gen cli/internal/gen)" || ( \
+		git status --short -- backend/internal/gen cli/internal/gen; \
+		echo "generated code is out of date: run 'make generate' and commit the result"; \
+		exit 1)
 
 migration: ## Create a migration: make migration name=add_something (needs goose)
 ifndef name

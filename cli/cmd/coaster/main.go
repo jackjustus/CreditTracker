@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -83,7 +84,7 @@ func listCredits(ctx context.Context, cmd *cli.Command) error {
 
 	return table([]string{"COASTER", "RIDES", "FIRST", "LAST"}, func(w *tabwriter.Writer) {
 		for _, credit := range *resp.JSON200 {
-			fmt.Fprintf(w, "%s\t%d\t%s\t%s\n",
+			_, _ = fmt.Fprintf(w, "%s\t%d\t%s\t%s\n",
 				credit.Name,
 				credit.RideCount,
 				credit.FirstRiddenAt.Format(time.DateOnly),
@@ -109,7 +110,7 @@ func listRides(ctx context.Context, cmd *cli.Command) error {
 
 	return table([]string{"RIDDEN AT", "COASTER"}, func(w *tabwriter.Writer) {
 		for _, ride := range resp.JSON200.Rides {
-			fmt.Fprintf(w, "%s\t%s\n",
+			_, _ = fmt.Fprintf(w, "%s\t%s\n",
 				ride.RiddenAt.Format(time.RFC3339),
 				ride.Coaster.Name)
 		}
@@ -145,7 +146,7 @@ func logRide(ctx context.Context, cmd *cli.Command) error {
 
 	ride := *resp.JSON200
 	return table([]string{"RIDDEN AT", "COASTER"}, func(w *tabwriter.Writer) {
-		fmt.Fprintf(w, "%s\t%s\n",
+		_, _ = fmt.Fprintf(w, "%s\t%s\n",
 			ride.RiddenAt.Format(time.RFC3339),
 			ride.Coaster.Name)
 	})
@@ -157,13 +158,8 @@ func newClient(cmd *cli.Command) (*client.ClientWithResponses, error) {
 
 func table(header []string, rows func(*tabwriter.Writer)) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	for i, h := range header {
-		if i > 0 {
-			fmt.Fprint(w, "\t")
-		}
-		fmt.Fprint(w, h)
-	}
-	fmt.Fprintln(w)
+	// tabwriter buffers writes, so any write error surfaces from Flush below.
+	_, _ = fmt.Fprintln(w, strings.Join(header, "\t"))
 	rows(w)
 	return w.Flush()
 }
