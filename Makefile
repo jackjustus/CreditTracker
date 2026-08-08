@@ -12,13 +12,19 @@ export GOOSE_DRIVER := postgres
 export GOOSE_DBSTRING := $(DATABASE_URL)
 export GOOSE_MIGRATION_DIR := backend/db/migrations
 
-.PHONY: help api stop-api logs psql install tools generate check lint verify-gen migration
+.PHONY: help api rebuild-api watch-api stop-api logs psql install tools generate check lint verify-gen migration
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  \033[36m%-11s\033[0m %s\n", $$1, $$2}'
 
 api: ## Start Postgres, migrate, seed, and serve the API on :8080
 	$(COMPOSE) up -d --build
+
+rebuild-api: ## Rebuild and restart just the API (leaves Postgres running)
+	$(COMPOSE) up -d --build api-service
+
+watch-api: ## Rebuild the API automatically whenever Go source changes
+	$(COMPOSE) watch api-service
 
 stop-api: ## Stop the stack (data preserved)
 	$(COMPOSE) down

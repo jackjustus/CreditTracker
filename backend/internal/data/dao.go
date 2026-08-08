@@ -33,7 +33,7 @@ func (dao *DAO) HydrateCoaster(ctx context.Context, coasterID uuid.UUID) (*model
 	if err != nil {
 		return nil, err
 	}
-	return models.NewCoaster(row.Coaster.ID, row.Coaster.Name), nil
+	return models.NewCoaster(row.Coaster), nil
 }
 
 func (dao *DAO) GetCredits(ctx context.Context) (*models.Credits, error) {
@@ -42,6 +42,14 @@ func (dao *DAO) GetCredits(ctx context.Context) (*models.Credits, error) {
 		return nil, err
 	}
 	return models.NewCredits(events)
+}
+
+func (dao *DAO) GetRides(ctx context.Context) (models.Rides, error) {
+	events, err := dao.dbc.GetRideEvents(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return models.NewRides(events), nil
 }
 
 func NewDAO(ctx context.Context) (*DAO, error) {
