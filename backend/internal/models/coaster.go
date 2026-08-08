@@ -4,12 +4,15 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackjustus/credittracker/backend/internal/gen/db"
 	api "github.com/jackjustus/credittracker/backend/internal/gen/openapi"
 )
 
 type Coaster struct {
-	id   uuid.UUID
-	name string
+	id             uuid.UUID
+	parkID         uuid.UUID
+	name           string
+	manufacturedAt time.Time
 }
 
 func (c *Coaster) ToRide(time time.Time) api.Ride {
@@ -22,9 +25,11 @@ func (c *Coaster) ToRide(time time.Time) api.Ride {
 	}
 }
 
-func NewCoaster(id uuid.UUID, name string) *Coaster {
+func NewCoaster(coaster db.Coaster) *Coaster {
 	return &Coaster{
-		id,
-		name,
+		id:             coaster.ID,
+		parkID:         coaster.ParkID,
+		name:           coaster.Name,
+		manufacturedAt: coaster.ManufacturedAt.Time,
 	}
 }

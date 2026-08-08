@@ -7,6 +7,7 @@ import (
 
 type GetRideEventsRows []GetRideEventsRow
 
+// ByID groups rows by their coaster ID
 func (rows GetRideEventsRows) ByID() map[uuid.UUID]GetRideEventsRows {
 	return slices.GroupBy(rows, func(row GetRideEventsRow) uuid.UUID {
 		return row.Coaster.ID

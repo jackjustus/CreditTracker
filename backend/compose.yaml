@@ -41,6 +41,19 @@ services:
 
   api-service:
     build: .
+    # `docker compose watch` rebuilds and recreates this service when Go source
+    # or deps change. Migrations are deliberately not watched: applying them is
+    # the `migrate` one-shot's job, not a side effect of rebuilding the binary.
+    develop:
+      watch:
+        - action: rebuild
+          path: ./cmd
+        - action: rebuild
+          path: ./internal
+        - action: rebuild
+          path: ./go.mod
+        - action: rebuild
+          path: ./go.sum
     environment:
       DATABASE_URL: postgres://postgres:testtest@db:5432/postgres?sslmode=disable
     depends_on:
