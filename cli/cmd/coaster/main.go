@@ -109,7 +109,7 @@ func listRides(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	return table([]string{"RIDDEN AT", "COASTER"}, func(w *tabwriter.Writer) {
-		for _, ride := range resp.JSON200.Rides {
+		for _, ride := range *resp.JSON200 {
 			_, _ = fmt.Fprintf(w, "%s\t%s\n",
 				ride.RiddenAt.Format(time.RFC3339),
 				ride.Coaster.Name)

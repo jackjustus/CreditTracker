@@ -43,13 +43,6 @@ type Ride struct {
 	RiddenAt time.Time `json:"riddenAt"`
 }
 
-// RidePage defines model for RidePage.
-type RidePage struct {
-	// NextCursor Pass as cursor to fetch the next page. Absent on the last page.
-	NextCursor *string `json:"nextCursor,omitempty"`
-	Rides      Rides   `json:"rides"`
-}
-
 // Rides defines model for Rides.
 type Rides = []Ride
 
@@ -263,7 +256,7 @@ type ListRidesResponseObject interface {
 	VisitListRidesResponse(w http.ResponseWriter) error
 }
 
-type ListRides200JSONResponse RidePage
+type ListRides200JSONResponse Rides
 
 func (response ListRides200JSONResponse) VisitListRidesResponse(w http.ResponseWriter) error {
 

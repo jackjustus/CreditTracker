@@ -44,13 +44,6 @@ type Ride struct {
 	RiddenAt time.Time `json:"riddenAt"`
 }
 
-// RidePage defines model for RidePage.
-type RidePage struct {
-	// NextCursor Pass as cursor to fetch the next page. Absent on the last page.
-	NextCursor *string `json:"nextCursor,omitempty"`
-	Rides      Rides   `json:"rides"`
-}
-
 // Rides defines model for Rides.
 type Rides = []Ride
 
@@ -519,11 +512,11 @@ type ListRidesResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSON200 the response for an HTTP 200 `application/json` response
-	JSON200 *RidePage
+	JSON200 *Rides
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
-func (r ListRidesResponse) GetJSON200() *RidePage {
+func (r ListRidesResponse) GetJSON200() *Rides {
 	return r.JSON200
 }
 
@@ -662,7 +655,7 @@ func ParseListRidesResponse(rsp *http.Response) (*ListRidesResponse, error) {
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest RidePage
+		var dest Rides
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
