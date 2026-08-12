@@ -23,6 +23,9 @@ type Coaster struct {
 	Name string `json:"name"`
 }
 
+// Coasters defines model for Coasters.
+type Coasters = []Coaster
+
 // Credit A coaster the rider has ridden at least once, aggregated over every ride of it. The id is the coaster's id.
 type Credit struct {
 	FirstRiddenAt time.Time `json:"firstRiddenAt"`
@@ -58,6 +61,12 @@ type WithId struct {
 // WithName defines model for WithName.
 type WithName struct {
 	Name string `json:"name"`
+}
+
+// SearchCoasterParams defines parameters for SearchCoaster.
+type SearchCoasterParams struct {
+	// Q the query which users are searching for, returns a coaster reference
+	Q string `form:"q" json:"q"`
 }
 
 // LogRideParams defines parameters for LogRide.
@@ -149,6 +158,11 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 // The interface specification for the client above.
 type ClientInterface interface {
 
+	// SearchCoaster List coaster & park, based on search
+	//
+	// Corresponds with GET /coasters (the `SearchCoaster` operationId).
+	SearchCoaster(ctx context.Context, params *SearchCoasterParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListCredits List distinct coasters ridden, one entry per coaster
 	//
 	// Corresponds with GET /credits (the `ListCredits` operationId).
@@ -163,6 +177,21 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /rides (the `ListRides` operationId).
 	ListRides(ctx context.Context, params *ListRidesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+// SearchCoaster List coaster & park, based on search
+//
+// Corresponds with GET /coasters (the `SearchCoaster` operationId).
+func (c *Client) SearchCoaster(ctx context.Context, params *SearchCoasterParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSearchCoasterRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 }
 
 // ListCredits List distinct coasters ridden, one entry per coaster
@@ -208,6 +237,56 @@ func (c *Client) ListRides(ctx context.Context, params *ListRidesParams, reqEdit
 		return nil, err
 	}
 	return c.Client.Do(req)
+}
+
+// NewSearchCoasterRequest constructs an http.Request for the SearchCoaster method
+func NewSearchCoasterRequest(server string, params *SearchCoasterParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/coasters")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
 }
 
 // NewListCreditsRequest constructs an http.Request for the ListCredits method
@@ -404,6 +483,13 @@ func WithBaseURL(baseURL string) ClientOption {
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
 
+	// SearchCoasterWithResponse List coaster & park, based on search
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /coasters (the `SearchCoaster` operationId).
+	SearchCoasterWithResponse(ctx context.Context, params *SearchCoasterParams, reqEditors ...RequestEditorFn) (*SearchCoasterResponse, error)
+
 	// ListCreditsWithResponse List distinct coasters ridden, one entry per coaster
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -424,6 +510,47 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /rides (the `ListRides` operationId).
 	ListRidesWithResponse(ctx context.Context, params *ListRidesParams, reqEditors ...RequestEditorFn) (*ListRidesResponse, error)
+}
+
+type SearchCoasterResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Coasters
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SearchCoasterResponse) GetJSON200() *Coasters {
+	return r.JSON200
+}
+
+// GetBody returns the raw response body bytes
+func (r SearchCoasterResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SearchCoasterResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SearchCoasterResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SearchCoasterResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
 }
 
 type ListCreditsResponse struct {
@@ -549,6 +676,19 @@ func (r ListRidesResponse) ContentType() string {
 	return ""
 }
 
+// SearchCoasterWithResponse List coaster & park, based on search
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /coasters (the `SearchCoaster` operationId).
+func (c *ClientWithResponses) SearchCoasterWithResponse(ctx context.Context, params *SearchCoasterParams, reqEditors ...RequestEditorFn) (*SearchCoasterResponse, error) {
+	rsp, err := c.SearchCoaster(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSearchCoasterResponse(rsp)
+}
+
 // ListCreditsWithResponse List distinct coasters ridden, one entry per coaster
 //
 // Returns a wrapper object for the known response body format(s).
@@ -586,6 +726,32 @@ func (c *ClientWithResponses) ListRidesWithResponse(ctx context.Context, params 
 		return nil, err
 	}
 	return ParseListRidesResponse(rsp)
+}
+
+// ParseSearchCoasterResponse parses an HTTP response from a SearchCoasterWithResponse call
+func ParseSearchCoasterResponse(rsp *http.Response) (*SearchCoasterResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SearchCoasterResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Coasters
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
 }
 
 // ParseListCreditsResponse parses an HTTP response from a ListCreditsWithResponse call

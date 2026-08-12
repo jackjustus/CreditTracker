@@ -22,6 +22,9 @@ type Coaster struct {
 	Name string `json:"name"`
 }
 
+// Coasters defines model for Coasters.
+type Coasters = []Coaster
+
 // Credit A coaster the rider has ridden at least once, aggregated over every ride of it. The id is the coaster's id.
 type Credit struct {
 	FirstRiddenAt time.Time `json:"firstRiddenAt"`
@@ -59,6 +62,12 @@ type WithName struct {
 	Name string `json:"name"`
 }
 
+// SearchCoasterParams defines parameters for SearchCoaster.
+type SearchCoasterParams struct {
+	// Q the query which users are searching for, returns a coaster reference
+	Q string `form:"q" json:"q"`
+}
+
 // LogRideParams defines parameters for LogRide.
 type LogRideParams struct {
 	// Timestamp the time at which the views is being recorded
@@ -76,6 +85,9 @@ type ListRidesParams struct {
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// SearchCoaster List coaster & park, based on search
+	// (GET /coasters)
+	SearchCoaster(ctx echo.Context, params SearchCoasterParams) error
 	// ListCredits List distinct coasters ridden, one entry per coaster
 	// (GET /credits)
 	ListCredits(ctx echo.Context) error
@@ -90,6 +102,24 @@ type ServerInterface interface {
 // ServerInterfaceWrapper converts echo contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler ServerInterface
+}
+
+// SearchCoaster converts echo context to params.
+func (w *ServerInterfaceWrapper) SearchCoaster(ctx echo.Context) error {
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SearchCoasterParams
+	// ------------- Required query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "q", ctx.QueryParams(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter q: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.SearchCoaster(ctx, params)
+	return err
 }
 
 // ListCredits converts echo context to params.
@@ -201,7 +231,30 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.GET(options.BaseURL+"/credits", wrapper.ListCredits, options.OperationMiddlewares["listCredits"]...)
 	router.GET(options.BaseURL+"/rides", wrapper.ListRides, options.OperationMiddlewares["listRides"]...)
 	router.POST(options.BaseURL+"/log/:coasterID", wrapper.LogRide, options.OperationMiddlewares["logRide"]...)
+	router.GET(options.BaseURL+"/coasters", wrapper.SearchCoaster, options.OperationMiddlewares["searchCoaster"]...)
 
+}
+
+type SearchCoasterRequestObject struct {
+	Params SearchCoasterParams
+}
+
+type SearchCoasterResponseObject interface {
+	VisitSearchCoasterResponse(w http.ResponseWriter) error
+}
+
+type SearchCoaster200JSONResponse Coasters
+
+func (response SearchCoaster200JSONResponse) VisitSearchCoasterResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
 }
 
 type ListCreditsRequestObject struct {
@@ -272,6 +325,9 @@ func (response ListRides200JSONResponse) VisitListRidesResponse(w http.ResponseW
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// SearchCoaster List coaster & park, based on search
+	// (GET /coasters)
+	SearchCoaster(ctx context.Context, request SearchCoasterRequestObject) (SearchCoasterResponseObject, error)
 	// ListCredits List distinct coasters ridden, one entry per coaster
 	// (GET /credits)
 	ListCredits(ctx context.Context, request ListCreditsRequestObject) (ListCreditsResponseObject, error)
@@ -293,6 +349,31 @@ func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareF
 type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
+}
+
+// SearchCoaster operation middleware
+func (sh *strictHandler) SearchCoaster(ctx echo.Context, params SearchCoasterParams) error {
+	var request SearchCoasterRequestObject
+
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.SearchCoaster(ctx.Request().Context(), request.(SearchCoasterRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SearchCoaster")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(SearchCoasterResponseObject); ok {
+		return validResponse.VisitSearchCoasterResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
 }
 
 // ListCredits operation middleware
