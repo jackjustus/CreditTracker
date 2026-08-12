@@ -18,12 +18,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Credits"
-#      "404":
-#        description: Not Found
-#        content:
-#          application/json:
-#            schema:
-#              $ref: "#components/schemas/ErrorNotFound"
+
   /rides:
     get:
       operationId: listRides
@@ -52,7 +47,8 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/RidePage"
+                $ref: "#/components/schemas/Rides"
+
   /log/{coasterID}:
     post:
       operationId: logRide
@@ -114,6 +110,10 @@ components:
       allOf:
         - $ref: "#/components/schemas/WithId"
         - $ref: "#/components/schemas/WithName"
+    Coasters:
+      type: array
+      items:
+        $ref: "#/components/schemas/Coaster"
 
     Credit:
       description: >
@@ -158,13 +158,3 @@ components:
       type: array
       items:
         $ref: "#/components/schemas/Ride"
-    RidePage:
-      type: object
-      required:
-        - rides
-      properties:
-        rides:
-          $ref: "#/components/schemas/Rides"
-        nextCursor:
-          type: string
-          description: Pass as cursor to fetch the next page. Absent on the last page.

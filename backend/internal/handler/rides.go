@@ -13,8 +13,5 @@ func (s Server) ListRides(ctx context.Context, req api.ListRidesRequestObject) (
 	if err != nil {
 		return nil, err
 	}
-	return api.ListRides200JSONResponse(api.RidePage{
-		NextCursor: nil,
-		Rides:      rides.ToAPI(),
-	}), nil
+	return api.ListRides200JSONResponse(rides.ToAPI()), nil
 }
