@@ -3,7 +3,11 @@
 man a coaster credit tracker with a command line interface how cool i bet this will be widely used by thoosies
 
 ### Build Instructions
-`cd api && docker compose`
+`make api`
+
+or... `make stop-api`
+
+make sure you got that docker engine running
 
 ### llm usage
 
