@@ -13,27 +13,30 @@ import (
 )
 
 const createRideEvent = `-- name: CreateRideEvent :exec
-INSERT INTO ride_events (coaster_id, created_at)
+INSERT INTO ride_events (user_id, coaster_id, created_at)
 VALUES (
         $1,
-        $2
+        $2,
+        $3
        )
 `
 
 type CreateRideEventParams struct {
+	UserID    uuid.UUID
 	CoasterID uuid.UUID
 	CreatedAt pgtype.Timestamptz
 }
 
 func (q *Queries) CreateRideEvent(ctx context.Context, arg CreateRideEventParams) error {
-	_, err := q.db.Exec(ctx, createRideEvent, arg.CoasterID, arg.CreatedAt)
+	_, err := q.db.Exec(ctx, createRideEvent, arg.UserID, arg.CoasterID, arg.CreatedAt)
 	return err
 }
 
 const getRideEvents = `-- name: GetRideEvents :many
-SELECT ride_events.coaster_id, ride_events.created_at, coasters.id, coasters.park_id, coasters.name, coasters.manufactured_at, coasters.external_id, coasters.external_source, coasters.created_at, coasters.updated_at
+SELECT ride_events.user_id, ride_events.coaster_id, ride_events.created_at, coasters.id, coasters.park_id, coasters.name, coasters.manufactured_at, coasters.external_id, coasters.external_source, coasters.created_at, coasters.updated_at
 FROM ride_events
 JOIN coasters ON ride_events.coaster_id = coasters.id
+WHERE ride_events.user_id = $1
 ORDER BY ride_events.created_at DESC
 `
 
@@ -42,8 +45,8 @@ type GetRideEventsRow struct {
 	Coaster   Coaster
 }
 
-func (q *Queries) GetRideEvents(ctx context.Context) ([]GetRideEventsRow, error) {
-	rows, err := q.db.Query(ctx, getRideEvents)
+func (q *Queries) GetRideEvents(ctx context.Context, userID uuid.UUID) ([]GetRideEventsRow, error) {
+	rows, err := q.db.Query(ctx, getRideEvents, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -52,6 +55,7 @@ func (q *Queries) GetRideEvents(ctx context.Context) ([]GetRideEventsRow, error)
 	for rows.Next() {
 		var i GetRideEventsRow
 		if err := rows.Scan(
+			&i.RideEvent.UserID,
 			&i.RideEvent.CoasterID,
 			&i.RideEvent.CreatedAt,
 			&i.Coaster.ID,
