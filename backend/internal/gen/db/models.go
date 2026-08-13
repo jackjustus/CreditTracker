@@ -32,6 +32,13 @@ type Park struct {
 }
 
 type RideEvent struct {
+	UserID    uuid.UUID
 	CoasterID uuid.UUID
+	CreatedAt pgtype.Timestamptz
+}
+
+type User struct {
+	ID        uuid.UUID
+	Name      *string
 	CreatedAt pgtype.Timestamptz
 }

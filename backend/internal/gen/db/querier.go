@@ -12,7 +12,7 @@ import (
 
 type Querier interface {
 	CreateRideEvent(ctx context.Context, arg CreateRideEventParams) error
-	GetRideEvents(ctx context.Context) ([]GetRideEventsRow, error)
+	GetRideEvents(ctx context.Context, userID uuid.UUID) ([]GetRideEventsRow, error)
 	HydrateCoaster(ctx context.Context, id uuid.UUID) (HydrateCoasterRow, error)
 }
 
