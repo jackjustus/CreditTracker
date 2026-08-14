@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:18
+    image: pgvector/pgvector:pg18-trixie
     restart: unless-stopped
     environment:
       POSTGRES_PASSWORD: testtest
@@ -56,6 +56,14 @@ services:
           path: ./go.sum
     environment:
       DATABASE_URL: postgres://postgres:testtest@db:5432/postgres?sslmode=disable
+      # Ollama runs natively on the host, not in a container: Docker Desktop on
+      # macOS has no GPU passthrough, so a containerized Ollama would be
+      # CPU-only. The host daemon must bind 0.0.0.0 (OLLAMA_HOST) to accept
+      # this; on loopback it only answers processes on the Mac itself.
+      OLLAMA_URL: http://host.docker.internal:11434
+    # Automatic on Docker Desktop; this makes it work on Linux hosts too.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       migrate:
         condition: service_completed_successfully

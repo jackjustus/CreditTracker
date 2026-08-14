@@ -31,7 +31,7 @@ func (q *Queries) CreateRideEvent(ctx context.Context, arg CreateRideEventParams
 }
 
 const getRideEvents = `-- name: GetRideEvents :many
-SELECT ride_events.coaster_id, ride_events.created_at, coasters.id, coasters.park_id, coasters.name, coasters.manufactured_at, coasters.external_id, coasters.external_source, coasters.created_at, coasters.updated_at
+SELECT ride_events.coaster_id, ride_events.created_at, coasters.id, coasters.park_id, coasters.name, coasters.manufactured_at, coasters.external_id, coasters.external_source, coasters.created_at, coasters.updated_at, coasters.search_profile, coasters.profile_embedding, coasters.profile_embedding_model, coasters.profile_embedded_at
 FROM ride_events
 JOIN coasters ON ride_events.coaster_id = coasters.id
 ORDER BY ride_events.created_at DESC
@@ -62,6 +62,10 @@ func (q *Queries) GetRideEvents(ctx context.Context) ([]GetRideEventsRow, error)
 			&i.Coaster.ExternalSource,
 			&i.Coaster.CreatedAt,
 			&i.Coaster.UpdatedAt,
+			&i.Coaster.SearchProfile,
+			&i.Coaster.ProfileEmbedding,
+			&i.Coaster.ProfileEmbeddingModel,
+			&i.Coaster.ProfileEmbeddedAt,
 		); err != nil {
 			return nil, err
 		}

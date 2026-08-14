@@ -12,7 +12,7 @@ import (
 )
 
 const hydrateCoaster = `-- name: HydrateCoaster :one
-SELECT coasters.id, coasters.park_id, coasters.name, coasters.manufactured_at, coasters.external_id, coasters.external_source, coasters.created_at, coasters.updated_at
+SELECT coasters.id, coasters.park_id, coasters.name, coasters.manufactured_at, coasters.external_id, coasters.external_source, coasters.created_at, coasters.updated_at, coasters.search_profile, coasters.profile_embedding, coasters.profile_embedding_model, coasters.profile_embedded_at
 FROM coasters
 WHERE coasters.id = $1
 `
@@ -33,6 +33,10 @@ func (q *Queries) HydrateCoaster(ctx context.Context, id uuid.UUID) (HydrateCoas
 		&i.Coaster.ExternalSource,
 		&i.Coaster.CreatedAt,
 		&i.Coaster.UpdatedAt,
+		&i.Coaster.SearchProfile,
+		&i.Coaster.ProfileEmbedding,
+		&i.Coaster.ProfileEmbeddingModel,
+		&i.Coaster.ProfileEmbeddedAt,
 	)
 	return i, err
 }

@@ -12,7 +12,7 @@ export GOOSE_DRIVER := postgres
 export GOOSE_DBSTRING := $(DATABASE_URL)
 export GOOSE_MIGRATION_DIR := backend/db/migrations
 
-.PHONY: help api rebuild-api watch-api stop-api logs psql install tools generate check lint verify-gen migration
+.PHONY: help api rebuild-api watch-api stop-api logs psql install tools generate check test lint verify-gen migration
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  \033[36m%-11s\033[0m %s\n", $$1, $$2}'
@@ -53,6 +53,10 @@ check: ## Build, vet, and lint both modules
 	cd backend && go build ./... && go vet ./...
 	cd cli && go build ./... && go vet ./...
 	$(MAKE) lint
+
+test: ## Run the unit tests for both modules
+	cd backend && go test ./...
+	cd cli && go test ./...
 
 lint: ## Run golangci-lint on both modules
 	cd backend && golangci-lint run
