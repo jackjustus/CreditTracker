@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackjustus/credittracker/backend/internal/gen/db"
 	api "github.com/jackjustus/credittracker/backend/internal/gen/openapi"
+	"github.com/life4/genesis/slices"
 )
 
 type Coaster struct {
@@ -22,6 +23,13 @@ func (c *Coaster) ID() uuid.UUID {
 
 func (c *Coaster) Name() string {
 	return c.name
+}
+
+func (c *Coaster) ToAPI() api.Coaster {
+	return api.Coaster{
+		Id:   c.id,
+		Name: c.name,
+	}
 }
 
 func (c *Coaster) ToRide(time time.Time) api.Ride {
@@ -41,6 +49,14 @@ func NewCoaster(coaster db.Coaster) *Coaster {
 		name:           coaster.Name,
 		manufacturedAt: coaster.ManufacturedAt.Time,
 	}
+}
+
+type Coasters []*Coaster
+
+func (cs Coasters) ToAPI() api.Coasters {
+	return slices.Map(cs, func(c *Coaster) api.Coaster {
+		return c.ToAPI()
+	})
 }
 
 type CoasterWithPark struct {
