@@ -108,6 +108,60 @@ func (q *Queries) ListCoastersNeedingEmbedding(ctx context.Context, arg ListCoas
 	return items, nil
 }
 
+const searchCoasters = `-- name: SearchCoasters :many
+SELECT coasters.id, coasters.park_id, coasters.name, coasters.manufactured_at, coasters.external_id, coasters.external_source, coasters.created_at, coasters.updated_at, coasters.search_profile, coasters.profile_embedding, coasters.profile_embedding_model, coasters.profile_embedded_at
+FROM coasters
+WHERE profile_embedding IS NOT NULL
+ORDER BY profile_embedding <=> $1
+LIMIT $2
+`
+
+type SearchCoastersParams struct {
+	QueryEmbedding *pgvector.Vector
+	RowLimit       int32
+}
+
+type SearchCoastersRow struct {
+	Coaster Coaster
+}
+
+// Nearest neighbours to an already-embedded query string, closest first.
+// <=> is cosine distance, so an index added later must use vector_cosine_ops
+// to be eligible. Rows with no embedding are excluded rather than sorted last:
+// NULL would sort to the end anyway, but only after being compared.
+func (q *Queries) SearchCoasters(ctx context.Context, arg SearchCoastersParams) ([]SearchCoastersRow, error) {
+	rows, err := q.db.Query(ctx, searchCoasters, arg.QueryEmbedding, arg.RowLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SearchCoastersRow{}
+	for rows.Next() {
+		var i SearchCoastersRow
+		if err := rows.Scan(
+			&i.Coaster.ID,
+			&i.Coaster.ParkID,
+			&i.Coaster.Name,
+			&i.Coaster.ManufacturedAt,
+			&i.Coaster.ExternalID,
+			&i.Coaster.ExternalSource,
+			&i.Coaster.CreatedAt,
+			&i.Coaster.UpdatedAt,
+			&i.Coaster.SearchProfile,
+			&i.Coaster.ProfileEmbedding,
+			&i.Coaster.ProfileEmbeddingModel,
+			&i.Coaster.ProfileEmbeddedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setCoasterEmbedding = `-- name: SetCoasterEmbedding :exec
 UPDATE coasters
 SET search_profile          = $1::text,

@@ -21,6 +21,11 @@ type Querier interface {
 	// improve embedding outcomes.
 	//
 	ListCoastersNeedingEmbedding(ctx context.Context, arg ListCoastersNeedingEmbeddingParams) ([]ListCoastersNeedingEmbeddingRow, error)
+	// Nearest neighbours to an already-embedded query string, closest first.
+	// <=> is cosine distance, so an index added later must use vector_cosine_ops
+	// to be eligible. Rows with no embedding are excluded rather than sorted last:
+	// NULL would sort to the end anyway, but only after being compared.
+	SearchCoasters(ctx context.Context, arg SearchCoastersParams) ([]SearchCoastersRow, error)
 	// Stores the vector alongside the exact text and model that produced it, so a
 	// later run can tell whether a row is stale. updated_at is deliberately left
 	// alone: the coaster itself did not change, only its derived embedding.
