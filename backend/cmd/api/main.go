@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"log"
 
 	"github.com/jackjustus/credittracker/backend/internal/data"
 	"github.com/jackjustus/credittracker/backend/internal/embed"
@@ -15,12 +15,12 @@ func main() {
 	ctx := context.Background()
 	dao, err := data.NewDAO(ctx)
 	if err != nil {
-		fmt.Print(err)
+		log.Fatal(err)
 		return
 	}
 	embedder, err := embed.NewClient()
 	if err != nil {
-		fmt.Print(err)
+		log.Fatal(err)
 		return
 	}
 	r := handler.NewServer(dao, embedder)
@@ -36,7 +36,7 @@ func main() {
 	))
 	err = e.Start(":8080")
 	if err != nil {
-		fmt.Print(err)
+		log.Fatal(err)
 		return
 	}
 }
