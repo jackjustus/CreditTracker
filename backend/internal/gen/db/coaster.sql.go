@@ -40,3 +40,69 @@ func (q *Queries) HydrateCoaster(ctx context.Context, id uuid.UUID) (HydrateCoas
 	)
 	return i, err
 }
+
+const listCoastersNeedingEmbedding = `-- name: ListCoastersNeedingEmbedding :many
+SELECT coasters.id, coasters.park_id, coasters.name, coasters.manufactured_at, coasters.external_id, coasters.external_source, coasters.created_at, coasters.updated_at, coasters.search_profile, coasters.profile_embedding, coasters.profile_embedding_model, coasters.profile_embedded_at, parks.id, parks.name, parks.city, parks.country, parks.external_id, parks.external_source, parks.created_at, parks.updated_at
+FROM coasters
+JOIN parks ON parks.id = coasters.park_id
+WHERE coasters.profile_embedding IS NULL
+   OR coasters.profile_embedding_model IS DISTINCT FROM $1::text
+ORDER BY coasters.id
+LIMIT $2
+`
+
+type ListCoastersNeedingEmbeddingParams struct {
+	Model    string
+	RowLimit int32
+}
+
+type ListCoastersNeedingEmbeddingRow struct {
+	Coaster Coaster
+	Park    Park
+}
+
+// Candidates for (re-)embedding.. either never embedded, or embedded under a different
+// model than the parameterized one.
+//
+// Park is embedded so that the doc producer as as much metadata abt the coaster as possible to
+// improve embedding outcomes.
+func (q *Queries) ListCoastersNeedingEmbedding(ctx context.Context, arg ListCoastersNeedingEmbeddingParams) ([]ListCoastersNeedingEmbeddingRow, error) {
+	rows, err := q.db.Query(ctx, listCoastersNeedingEmbedding, arg.Model, arg.RowLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListCoastersNeedingEmbeddingRow{}
+	for rows.Next() {
+		var i ListCoastersNeedingEmbeddingRow
+		if err := rows.Scan(
+			&i.Coaster.ID,
+			&i.Coaster.ParkID,
+			&i.Coaster.Name,
+			&i.Coaster.ManufacturedAt,
+			&i.Coaster.ExternalID,
+			&i.Coaster.ExternalSource,
+			&i.Coaster.CreatedAt,
+			&i.Coaster.UpdatedAt,
+			&i.Coaster.SearchProfile,
+			&i.Coaster.ProfileEmbedding,
+			&i.Coaster.ProfileEmbeddingModel,
+			&i.Coaster.ProfileEmbeddedAt,
+			&i.Park.ID,
+			&i.Park.Name,
+			&i.Park.City,
+			&i.Park.Country,
+			&i.Park.ExternalID,
+			&i.Park.ExternalSource,
+			&i.Park.CreatedAt,
+			&i.Park.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

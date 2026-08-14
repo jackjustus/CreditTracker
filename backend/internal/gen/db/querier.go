@@ -14,6 +14,13 @@ type Querier interface {
 	CreateRideEvent(ctx context.Context, arg CreateRideEventParams) error
 	GetRideEvents(ctx context.Context) ([]GetRideEventsRow, error)
 	HydrateCoaster(ctx context.Context, id uuid.UUID) (HydrateCoasterRow, error)
+	// Candidates for (re-)embedding.. either never embedded, or embedded under a different
+	// model than the parameterized one.
+	//
+	// Park is embedded so that the doc producer as as much metadata abt the coaster as possible to
+	// improve embedding outcomes.
+	//
+	ListCoastersNeedingEmbedding(ctx context.Context, arg ListCoastersNeedingEmbeddingParams) ([]ListCoastersNeedingEmbeddingRow, error)
 }
 
 var _ Querier = (*Queries)(nil)
