@@ -18,6 +18,15 @@ WHERE coasters.profile_embedding IS NULL
 ORDER BY coasters.id
 LIMIT @row_limit;
 
+-- Nearest neighbours to an embedded query vector, closest first.
+-- <=> is cosine distance. non-embedded coasters are excluded.
+-- name: SearchCoasters :many
+SELECT sqlc.embed(coasters)
+FROM coasters
+WHERE profile_embedding IS NOT NULL
+ORDER BY profile_embedding <=> @query_embedding
+LIMIT @row_limit;
+
 -- Stores the vector alongside the exact text and model that produced it, so a
 -- later run can tell whether a row is stale. updated_at is deliberately left
 -- alone: the coaster itself did not change, only its derived embedding.
