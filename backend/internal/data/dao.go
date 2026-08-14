@@ -36,6 +36,26 @@ func (dao *DAO) HydrateCoaster(ctx context.Context, coasterID uuid.UUID) (*model
 	return models.NewCoaster(row.Coaster), nil
 }
 
+func (dao *DAO) ListEmbeddingTargets(ctx context.Context, model string, limit int32) ([]*models.CoasterWithPark, error) {
+	rows, err := dao.dbc.ListCoastersNeedingEmbedding(ctx, db.ListCoastersNeedingEmbeddingParams{
+		Model:    model,
+		RowLimit: limit,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	coasters := make([]*models.CoasterWithPark, 0, len(rows))
+	for _, row := range rows {
+		cwp, err := models.NewCoasterWithPark(models.NewCoaster(row.Coaster), models.NewPark(row.Park))
+		if err != nil {
+			return nil, err
+		}
+		coasters = append(coasters, cwp)
+	}
+	return coasters, nil
+}
+
 func (dao *DAO) GetCredits(ctx context.Context) (*models.Credits, error) {
 	events, err := dao.dbc.GetRideEvents(ctx)
 	if err != nil {
