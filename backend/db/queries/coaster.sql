@@ -17,3 +17,14 @@ WHERE coasters.profile_embedding IS NULL
    OR coasters.profile_embedding_model IS DISTINCT FROM @model::text
 ORDER BY coasters.id
 LIMIT @row_limit;
+
+-- Stores the vector alongside the exact text and model that produced it, so a
+-- later run can tell whether a row is stale. updated_at is deliberately left
+-- alone: the coaster itself did not change, only its derived embedding.
+-- name: SetCoasterEmbedding :exec
+UPDATE coasters
+SET search_profile          = @search_profile::text,
+    profile_embedding       = @profile_embedding,
+    profile_embedding_model = @profile_embedding_model::text,
+    profile_embedded_at     = now()
+WHERE id = @id;

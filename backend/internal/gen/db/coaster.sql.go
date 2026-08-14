@@ -9,6 +9,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/pgvector/pgvector-go"
 )
 
 const hydrateCoaster = `-- name: HydrateCoaster :one
@@ -105,4 +106,33 @@ func (q *Queries) ListCoastersNeedingEmbedding(ctx context.Context, arg ListCoas
 		return nil, err
 	}
 	return items, nil
+}
+
+const setCoasterEmbedding = `-- name: SetCoasterEmbedding :exec
+UPDATE coasters
+SET search_profile          = $1::text,
+    profile_embedding       = $2,
+    profile_embedding_model = $3::text,
+    profile_embedded_at     = now()
+WHERE id = $4
+`
+
+type SetCoasterEmbeddingParams struct {
+	SearchProfile         string
+	ProfileEmbedding      *pgvector.Vector
+	ProfileEmbeddingModel string
+	ID                    uuid.UUID
+}
+
+// Stores the vector alongside the exact text and model that produced it, so a
+// later run can tell whether a row is stale. updated_at is deliberately left
+// alone: the coaster itself did not change, only its derived embedding.
+func (q *Queries) SetCoasterEmbedding(ctx context.Context, arg SetCoasterEmbeddingParams) error {
+	_, err := q.db.Exec(ctx, setCoasterEmbedding,
+		arg.SearchProfile,
+		arg.ProfileEmbedding,
+		arg.ProfileEmbeddingModel,
+		arg.ID,
+	)
+	return err
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackjustus/credittracker/backend/internal/gen/db"
 	"github.com/jackjustus/credittracker/backend/internal/models"
+	"github.com/pgvector/pgvector-go"
 )
 
 type DAO struct {
@@ -54,6 +55,19 @@ func (dao *DAO) ListEmbeddingTargets(ctx context.Context, model string, limit in
 		coasters = append(coasters, cwp)
 	}
 	return coasters, nil
+}
+
+// SetCoasterEmbedding writes a vector along with the document text and model
+// that produced it. The model is a parameter rather than a constant so the
+// data layer stays unaware of which embedder produced the vector.
+func (dao *DAO) SetCoasterEmbedding(ctx context.Context, coasterID uuid.UUID, doc, model string, vec []float32) error {
+	embedding := pgvector.NewVector(vec)
+	return dao.dbc.SetCoasterEmbedding(ctx, db.SetCoasterEmbeddingParams{
+		ID:                    coasterID,
+		SearchProfile:         doc,
+		ProfileEmbedding:      &embedding,
+		ProfileEmbeddingModel: model,
+	})
 }
 
 func (dao *DAO) GetCredits(ctx context.Context) (*models.Credits, error) {

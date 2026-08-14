@@ -21,6 +21,10 @@ type Querier interface {
 	// improve embedding outcomes.
 	//
 	ListCoastersNeedingEmbedding(ctx context.Context, arg ListCoastersNeedingEmbeddingParams) ([]ListCoastersNeedingEmbeddingRow, error)
+	// Stores the vector alongside the exact text and model that produced it, so a
+	// later run can tell whether a row is stale. updated_at is deliberately left
+	// alone: the coaster itself did not change, only its derived embedding.
+	SetCoasterEmbedding(ctx context.Context, arg SetCoasterEmbeddingParams) error
 }
 
 var _ Querier = (*Queries)(nil)
