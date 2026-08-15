@@ -7,17 +7,22 @@ package db
 import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/pgvector/pgvector-go"
 )
 
 type Coaster struct {
-	ID             uuid.UUID
-	ParkID         uuid.UUID
-	Name           string
-	ManufacturedAt pgtype.Timestamptz
-	ExternalID     *string
-	ExternalSource *string
-	CreatedAt      pgtype.Timestamptz
-	UpdatedAt      pgtype.Timestamptz
+	ID                    uuid.UUID
+	ParkID                uuid.UUID
+	Name                  string
+	ManufacturedAt        pgtype.Timestamptz
+	ExternalID            *string
+	ExternalSource        *string
+	CreatedAt             pgtype.Timestamptz
+	UpdatedAt             pgtype.Timestamptz
+	SearchProfile         *string
+	ProfileEmbedding      *pgvector.Vector
+	ProfileEmbeddingModel *string
+	ProfileEmbeddedAt     pgtype.Timestamptz
 }
 
 type Park struct {

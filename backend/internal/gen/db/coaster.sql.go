@@ -9,10 +9,11 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/pgvector/pgvector-go"
 )
 
 const hydrateCoaster = `-- name: HydrateCoaster :one
-SELECT coasters.id, coasters.park_id, coasters.name, coasters.manufactured_at, coasters.external_id, coasters.external_source, coasters.created_at, coasters.updated_at
+SELECT coasters.id, coasters.park_id, coasters.name, coasters.manufactured_at, coasters.external_id, coasters.external_source, coasters.created_at, coasters.updated_at, coasters.search_profile, coasters.profile_embedding, coasters.profile_embedding_model, coasters.profile_embedded_at
 FROM coasters
 WHERE coasters.id = $1
 `
@@ -33,6 +34,157 @@ func (q *Queries) HydrateCoaster(ctx context.Context, id uuid.UUID) (HydrateCoas
 		&i.Coaster.ExternalSource,
 		&i.Coaster.CreatedAt,
 		&i.Coaster.UpdatedAt,
+		&i.Coaster.SearchProfile,
+		&i.Coaster.ProfileEmbedding,
+		&i.Coaster.ProfileEmbeddingModel,
+		&i.Coaster.ProfileEmbeddedAt,
 	)
 	return i, err
+}
+
+const listCoastersNeedingEmbedding = `-- name: ListCoastersNeedingEmbedding :many
+SELECT coasters.id, coasters.park_id, coasters.name, coasters.manufactured_at, coasters.external_id, coasters.external_source, coasters.created_at, coasters.updated_at, coasters.search_profile, coasters.profile_embedding, coasters.profile_embedding_model, coasters.profile_embedded_at, parks.id, parks.name, parks.city, parks.country, parks.external_id, parks.external_source, parks.created_at, parks.updated_at
+FROM coasters
+JOIN parks ON parks.id = coasters.park_id
+WHERE coasters.profile_embedding IS NULL
+   OR coasters.profile_embedding_model IS DISTINCT FROM $1::text
+ORDER BY coasters.id
+LIMIT $2
+`
+
+type ListCoastersNeedingEmbeddingParams struct {
+	Model    string
+	RowLimit int32
+}
+
+type ListCoastersNeedingEmbeddingRow struct {
+	Coaster Coaster
+	Park    Park
+}
+
+// Candidates for (re-)embedding.. either never embedded, or embedded under a different
+// model than the parameterized one.
+//
+// Park is embedded so that the doc producer as as much metadata abt the coaster as possible to
+// improve embedding outcomes.
+func (q *Queries) ListCoastersNeedingEmbedding(ctx context.Context, arg ListCoastersNeedingEmbeddingParams) ([]ListCoastersNeedingEmbeddingRow, error) {
+	rows, err := q.db.Query(ctx, listCoastersNeedingEmbedding, arg.Model, arg.RowLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListCoastersNeedingEmbeddingRow{}
+	for rows.Next() {
+		var i ListCoastersNeedingEmbeddingRow
+		if err := rows.Scan(
+			&i.Coaster.ID,
+			&i.Coaster.ParkID,
+			&i.Coaster.Name,
+			&i.Coaster.ManufacturedAt,
+			&i.Coaster.ExternalID,
+			&i.Coaster.ExternalSource,
+			&i.Coaster.CreatedAt,
+			&i.Coaster.UpdatedAt,
+			&i.Coaster.SearchProfile,
+			&i.Coaster.ProfileEmbedding,
+			&i.Coaster.ProfileEmbeddingModel,
+			&i.Coaster.ProfileEmbeddedAt,
+			&i.Park.ID,
+			&i.Park.Name,
+			&i.Park.City,
+			&i.Park.Country,
+			&i.Park.ExternalID,
+			&i.Park.ExternalSource,
+			&i.Park.CreatedAt,
+			&i.Park.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchCoasters = `-- name: SearchCoasters :many
+SELECT coasters.id, coasters.park_id, coasters.name, coasters.manufactured_at, coasters.external_id, coasters.external_source, coasters.created_at, coasters.updated_at, coasters.search_profile, coasters.profile_embedding, coasters.profile_embedding_model, coasters.profile_embedded_at
+FROM coasters
+WHERE profile_embedding IS NOT NULL
+ORDER BY profile_embedding <=> $1
+LIMIT $2
+`
+
+type SearchCoastersParams struct {
+	QueryEmbedding *pgvector.Vector
+	RowLimit       int32
+}
+
+type SearchCoastersRow struct {
+	Coaster Coaster
+}
+
+// Nearest neighbours to an embedded query vector, closest first.
+// <=> is cosine distance. non-embedded coasters are excluded.
+func (q *Queries) SearchCoasters(ctx context.Context, arg SearchCoastersParams) ([]SearchCoastersRow, error) {
+	rows, err := q.db.Query(ctx, searchCoasters, arg.QueryEmbedding, arg.RowLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SearchCoastersRow{}
+	for rows.Next() {
+		var i SearchCoastersRow
+		if err := rows.Scan(
+			&i.Coaster.ID,
+			&i.Coaster.ParkID,
+			&i.Coaster.Name,
+			&i.Coaster.ManufacturedAt,
+			&i.Coaster.ExternalID,
+			&i.Coaster.ExternalSource,
+			&i.Coaster.CreatedAt,
+			&i.Coaster.UpdatedAt,
+			&i.Coaster.SearchProfile,
+			&i.Coaster.ProfileEmbedding,
+			&i.Coaster.ProfileEmbeddingModel,
+			&i.Coaster.ProfileEmbeddedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const setCoasterEmbedding = `-- name: SetCoasterEmbedding :exec
+UPDATE coasters
+SET search_profile          = $1::text,
+    profile_embedding       = $2,
+    profile_embedding_model = $3::text,
+    profile_embedded_at     = now()
+WHERE id = $4
+`
+
+type SetCoasterEmbeddingParams struct {
+	SearchProfile         string
+	ProfileEmbedding      *pgvector.Vector
+	ProfileEmbeddingModel string
+	ID                    uuid.UUID
+}
+
+// Stores the vector alongside the exact text and model that produced it, so a
+// later run can tell whether a row is stale.
+// rather than changing updated_at, we write to embedded_at. (core coaster metadata isn't changing)
+func (q *Queries) SetCoasterEmbedding(ctx context.Context, arg SetCoasterEmbeddingParams) error {
+	_, err := q.db.Exec(ctx, setCoasterEmbedding,
+		arg.SearchProfile,
+		arg.ProfileEmbedding,
+		arg.ProfileEmbeddingModel,
+		arg.ID,
+	)
+	return err
 }

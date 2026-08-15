@@ -14,6 +14,20 @@ type Querier interface {
 	CreateRideEvent(ctx context.Context, arg CreateRideEventParams) error
 	GetRideEvents(ctx context.Context, userID uuid.UUID) ([]GetRideEventsRow, error)
 	HydrateCoaster(ctx context.Context, id uuid.UUID) (HydrateCoasterRow, error)
+	// Candidates for (re-)embedding.. either never embedded, or embedded under a different
+	// model than the parameterized one.
+	//
+	// Park is embedded so that the doc producer as as much metadata abt the coaster as possible to
+	// improve embedding outcomes.
+	//
+	ListCoastersNeedingEmbedding(ctx context.Context, arg ListCoastersNeedingEmbeddingParams) ([]ListCoastersNeedingEmbeddingRow, error)
+	// Nearest neighbours to an embedded query vector, closest first.
+	// <=> is cosine distance. non-embedded coasters are excluded.
+	SearchCoasters(ctx context.Context, arg SearchCoastersParams) ([]SearchCoastersRow, error)
+	// Stores the vector alongside the exact text and model that produced it, so a
+	// later run can tell whether a row is stale.
+	// rather than changing updated_at, we write to embedded_at. (core coaster metadata isn't changing)
+	SetCoasterEmbedding(ctx context.Context, arg SetCoasterEmbeddingParams) error
 }
 
 var _ Querier = (*Queries)(nil)
