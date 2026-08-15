@@ -30,6 +30,7 @@ LIMIT @row_limit;
 -- Stores the vector alongside the exact text and model that produced it, so a
 -- later run can tell whether a row is stale.
 -- rather than changing updated_at, we write to embedded_at. (core coaster metadata isn't changing)
+-- name: SetCoasterEmbedding :exec
 UPDATE coasters
 SET search_profile          = @search_profile::text,
     profile_embedding       = @profile_embedding,
