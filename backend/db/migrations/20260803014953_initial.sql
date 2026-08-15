@@ -1,4 +1,10 @@
 -- +goose Up
+CREATE TABLE users (
+    id         uuid        NOT NULL PRIMARY KEY,
+    name       text,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE TABLE parks (
     id              uuid NOT NULL   PRIMARY KEY DEFAULT uuidv7(),
     name            text NOT NULL,
@@ -36,10 +42,11 @@ CREATE TABLE coasters (
     UNIQUE (external_id, external_source)
 );
 CREATE TABLE ride_events (
+    user_id         uuid        NOT NULL    REFERENCES users (id),
     coaster_id      uuid        NOT NULL    REFERENCES coasters (id),
     created_at      timestamptz NOT NULL    DEFAULT now(),
 
-    PRIMARY KEY (coaster_id, created_at)
+    PRIMARY KEY (user_id, coaster_id, created_at)
 );
 
 
@@ -49,3 +56,4 @@ CREATE TABLE ride_events (
 DROP TABLE ride_events;
 DROP TABLE coasters;
 DROP TABLE parks;
+DROP TABLE users;

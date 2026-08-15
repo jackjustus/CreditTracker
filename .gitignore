@@ -37,3 +37,8 @@ web/dist/
 
 # Ingestion artifacts (regenerable)
 /data/
+
+# Local agent/dev config (per-developer, not shared)
+AGENTS.md
+CLAUDE.md
+docs/agents/

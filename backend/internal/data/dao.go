@@ -15,12 +15,17 @@ import (
 	"github.com/pgvector/pgvector-go"
 )
 
+// SentinelUserID is the fixed user ID used for the single local user until
+// authentication is implemented.
+var SentinelUserID = uuid.MustParse("00000000-0000-0000-0000-000000000001")
+
 type DAO struct {
 	dbc db.Querier
 }
 
-func (dao *DAO) CreateRideEvent(ctx context.Context, coasterID uuid.UUID, createdAt time.Time) error {
+func (dao *DAO) CreateRideEvent(ctx context.Context, userID uuid.UUID, coasterID uuid.UUID, createdAt time.Time) error {
 	err := dao.dbc.CreateRideEvent(ctx, db.CreateRideEventParams{
+		UserID:    userID,
 		CoasterID: coasterID,
 		CreatedAt: pgtype.Timestamptz{Time: createdAt, Valid: true},
 	})
@@ -88,16 +93,16 @@ func (dao *DAO) SetCoasterEmbedding(ctx context.Context, coasterID uuid.UUID, do
 	})
 }
 
-func (dao *DAO) GetCredits(ctx context.Context) (*models.Credits, error) {
-	events, err := dao.dbc.GetRideEvents(ctx)
+func (dao *DAO) GetCredits(ctx context.Context, userID uuid.UUID) (*models.Credits, error) {
+	events, err := dao.dbc.GetRideEvents(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 	return models.NewCredits(events)
 }
 
-func (dao *DAO) GetRides(ctx context.Context) (models.Rides, error) {
-	events, err := dao.dbc.GetRideEvents(ctx)
+func (dao *DAO) GetRides(ctx context.Context, userID uuid.UUID) (models.Rides, error) {
+	events, err := dao.dbc.GetRideEvents(ctx, userID)
 	if err != nil {
 		return nil, err
 	}

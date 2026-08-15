@@ -3,11 +3,12 @@ package handler
 import (
 	"context"
 
+	"github.com/jackjustus/credittracker/backend/internal/data"
 	api "github.com/jackjustus/credittracker/backend/internal/gen/openapi"
 )
 
 func (s Server) ListCredits(ctx context.Context, req api.ListCreditsRequestObject) (api.ListCreditsResponseObject, error) {
-	creds, err := s.dao.GetCredits(ctx)
+	creds, err := s.dao.GetCredits(ctx, data.SentinelUserID)
 	if err != nil {
 		return nil, err
 	}
