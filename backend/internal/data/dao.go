@@ -81,8 +81,7 @@ func (dao *DAO) SearchCoasters(ctx context.Context, query []float32, limit int32
 }
 
 // SetCoasterEmbedding writes a vector along with the document text and model
-// that produced it. The model is a parameter rather than a constant so the
-// data layer stays unaware of which embedder produced the vector.
+// that produced it.
 func (dao *DAO) SetCoasterEmbedding(ctx context.Context, coasterID uuid.UUID, doc, model string, vec []float32) error {
 	embedding := pgvector.NewVector(vec)
 	return dao.dbc.SetCoasterEmbedding(ctx, db.SetCoasterEmbeddingParams{

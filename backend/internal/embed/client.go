@@ -14,7 +14,6 @@ import (
 // Ollama's default listen address, which is right for anything run on the host
 // (`go run ./cmd/embedder`). Containers cannot reach the daemon this way and
 // must set OLLAMA_URL to host.docker.internal, as compose.yaml does.
-
 const defaultURL = "http://localhost:11434"
 
 const (
@@ -63,7 +62,6 @@ func (c *Client) Embed(ctx context.Context, docs []string) ([][]float32, error) 
 	if err != nil {
 		return nil, err
 	}
-	//req.Header.Set("Content-Type", "application/json")
 
 	res, err := c.httpc.Do(req)
 	if err != nil {
@@ -83,8 +81,7 @@ func (c *Client) Embed(ctx context.Context, docs []string) ([][]float32, error) 
 	if res.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("ollama returned %s: %s", res.Status, parsed.Error)
 	}
-	// Callers zip these against the docs they sent, so a short response would
-	// silently write one coaster's embedding onto another's row.
+
 	if len(parsed.Embeddings) != len(docs) {
 		return nil, fmt.Errorf("asked for %d embeddings, got %d", len(docs), len(parsed.Embeddings))
 	}
