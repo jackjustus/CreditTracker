@@ -54,7 +54,8 @@ build: ## Build and vet both modules
 	cd backend && go build ./... && go vet ./...
 	cd cli && go build ./... && go vet ./...
 
-check: build ## Build, vet, lint, and verify generated code (mirrors CI)
+check: build ## Build, vet, test, lint, and verify generated code (mirrors CI)
+	$(MAKE) test
 	$(MAKE) lint
 	$(MAKE) verify-gen
 
