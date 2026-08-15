@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -67,7 +68,13 @@ func (c *Client) Embed(ctx context.Context, docs []string) ([][]float32, error) 
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+	}(res.Body)
 
 	raw, err := io.ReadAll(res.Body)
 	if err != nil {
