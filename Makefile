@@ -12,7 +12,7 @@ export GOOSE_DRIVER := postgres
 export GOOSE_DBSTRING := $(DATABASE_URL)
 export GOOSE_MIGRATION_DIR := backend/db/migrations
 
-.PHONY: help api rebuild-api watch-api stop-api logs psql install tools generate check lint verify-gen migration
+.PHONY: help api rebuild-api watch-api stop-api logs psql install tools generate build check lint verify-gen migration
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  \033[36m%-11s\033[0m %s\n", $$1, $$2}'
@@ -43,16 +43,20 @@ tools: ## Install the pinned code generators into $$GOPATH/bin
 	go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@$(OAPI_VERSION)
 
 generate: ## Regenerate sqlc queries and the OpenAPI server/client
+	@for t in sqlc oapi-codegen; do \
+		command -v $$t >/dev/null || { echo "$$t not found on PATH: run 'make tools'"; exit 1; }; \
+	done
 	cd backend && sqlc generate
 	oapi-codegen --config=oapi-codegen.server.yaml ./openapi.yaml
 	oapi-codegen --config=oapi-codegen.client.yaml ./openapi.yaml
 
-# Builds and vets first: golangci-lint reports a package that does not compile
-# as an inscrutable typecheck error, so let the compiler say it plainly.
-check: ## Build, vet, and lint both modules
+build: ## Build and vet both modules
 	cd backend && go build ./... && go vet ./...
 	cd cli && go build ./... && go vet ./...
+
+check: build ## Build, vet, lint, and verify generated code (mirrors CI)
 	$(MAKE) lint
+	$(MAKE) verify-gen
 
 lint: ## Run golangci-lint on both modules
 	cd backend && golangci-lint run
@@ -60,7 +64,8 @@ lint: ## Run golangci-lint on both modules
 
 # Uses `git status --porcelain`, not `git diff`: the latter ignores untracked
 # files, so a newly generated .sql.go that was never committed slips past it.
-verify-gen: generate check ## CI: fail if generated code is not committed
+# Does not build or lint: if this passes, the bytes are what `build` already ran on.
+verify-gen: generate ## CI: fail if generated code is not committed
 	@test -z "$$(git status --porcelain -- backend/internal/gen cli/internal/gen)" || ( \
 		git status --short -- backend/internal/gen cli/internal/gen; \
 		echo "generated code is out of date: run 'make generate' and commit the result"; \
