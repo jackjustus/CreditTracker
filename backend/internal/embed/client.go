@@ -12,9 +12,9 @@ import (
 	"time"
 )
 
-// Ollama's default listen address, which is right for anything run on the host
-// (`go run ./cmd/embedder`). Containers cannot reach the daemon this way and
-// must set OLLAMA_URL to host.docker.internal, as compose.yaml does.
+// Ollama's default listen address, used only when a binary is run directly on
+// the host (`go run ./cmd/embedder`) against a locally installed daemon. Under
+// compose, Ollama is a container and OLLAMA_URL points at the service.
 const defaultURL = "http://localhost:11434"
 
 const (
