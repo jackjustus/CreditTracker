@@ -57,13 +57,13 @@ paths:
         - name: coasterID
           in: path
           required: true
-          description: the uuid of the coaster you are logging a views on
+          description: coaster to log a ride on.
           schema:
-            $ref: "#/components/schemas/UUID"
+            $ref: "#/components/schemas/CoasterRef"
         - name: timestamp
           in: query
           required: true
-          description: the time at which the views is being recorded
+          description: the time at which the ride happened.
           schema:
             type: string
             format: date-time
@@ -95,14 +95,27 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Coasters"
+                $ref: "#/components/schemas/CoasterRefs"
 
 components:
   schemas:
 
     # Primitives
 
-    WithId:
+    CoasterID:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+    CoasterName:
+      type: string
+    CoasterManufacturedAt:
+      type: string
+      format: date-time
+
+    ParkID:
       type: object
       required:
         - id
@@ -128,21 +141,53 @@ components:
     # First Class Objects
 
     Coaster:
+      description: Rich information about a coaster
+      allOf:
+        - $ref: "#/components/schemas/CoasterRef"
+        - $ref: "#/components/schemas/CoasterName"
+        - $ref: "#/components/schemas/CoasterManufacturedAt"
+    CoasterRef:
       description: Reference to a coaster.
       allOf:
-        - $ref: "#/components/schemas/WithId"
-        - $ref: "#/components/schemas/WithName"
-    Coasters:
+        - $ref: "#/components/schemas/CoasterID"
+    CoasterRefs:
       type: array
       items:
-        $ref: "#/components/schemas/Coaster"
+        $ref: "#/components/schemas/CoasterRef"
+
+    ParkRef:
+      description: Reference to a park.
+      allOf:
+        - $ref: "#/components/schemas/ParkID"
+    ParkRefs:
+      type: array
+      items:
+        $ref: "#/components/schemas/ParkRef"
+
+
+    Ride:
+      description: A single logged trip on a coaster.
+      type: object
+      required:
+        - coaster
+        - riddenAt
+      properties:
+        coaster:
+          $ref: "#/components/schemas/CoasterRef"
+        riddenAt:
+          type: string
+          format: date-time
+    Rides:
+      type: array
+      items:
+        $ref: "#/components/schemas/Ride"
+
 
     Credit:
       description: >
-        A coaster the rider has ridden at least once, aggregated over every
-        ride of it. The id is the coaster's id.
+        Information about aggregated ride events for a coaster
       allOf:
-        - $ref: "#/components/schemas/Coaster"
+        - $ref: "#/components/schemas/CoasterRef"
         - type: object
           required:
             - rideCount
@@ -163,20 +208,3 @@ components:
       type: array
       items:
         $ref: "#/components/schemas/Credit"
-
-    Ride:
-      description: A single logged trip on a coaster.
-      type: object
-      required:
-        - coaster
-        - riddenAt
-      properties:
-        coaster:
-          $ref: "#/components/schemas/Coaster"
-        riddenAt:
-          type: string
-          format: date-time
-    Rides:
-      type: array
-      items:
-        $ref: "#/components/schemas/Ride"

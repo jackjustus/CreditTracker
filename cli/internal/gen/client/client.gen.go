@@ -17,21 +17,22 @@ import (
 	"github.com/oapi-codegen/runtime"
 )
 
-// Coaster Reference to a coaster.
-type Coaster struct {
-	Id   UUID   `json:"id"`
-	Name string `json:"name"`
+// CoasterID defines model for CoasterID.
+type CoasterID struct {
+	Id UUID `json:"id"`
 }
 
-// Coasters defines model for Coasters.
-type Coasters = []Coaster
+// CoasterRef Reference to a coaster.
+type CoasterRef = CoasterID
 
-// Credit A coaster the rider has ridden at least once, aggregated over every ride of it. The id is the coaster's id.
+// CoasterRefs defines model for CoasterRefs.
+type CoasterRefs = []CoasterRef
+
+// Credit Information about aggregated ride events for a coaster
 type Credit struct {
 	FirstRiddenAt time.Time `json:"firstRiddenAt"`
 	Id            UUID      `json:"id"`
 	LastRiddenAt  time.Time `json:"lastRiddenAt"`
-	Name          string    `json:"name"`
 
 	// RideCount Number of logged rides on this coaster
 	RideCount int `json:"rideCount"`
@@ -43,8 +44,8 @@ type Credits = []Credit
 // Ride A single logged trip on a coaster.
 type Ride struct {
 	// Coaster Reference to a coaster.
-	Coaster  Coaster   `json:"coaster"`
-	RiddenAt time.Time `json:"riddenAt"`
+	Coaster  CoasterRef `json:"coaster"`
+	RiddenAt time.Time  `json:"riddenAt"`
 }
 
 // Rides defines model for Rides.
@@ -52,16 +53,6 @@ type Rides = []Ride
 
 // UUID defines model for UUID.
 type UUID = uuid.UUID
-
-// WithId defines model for WithId.
-type WithId struct {
-	Id UUID `json:"id"`
-}
-
-// WithName defines model for WithName.
-type WithName struct {
-	Name string `json:"name"`
-}
 
 // SearchCoasterParams defines parameters for SearchCoaster.
 type SearchCoasterParams struct {
@@ -71,7 +62,7 @@ type SearchCoasterParams struct {
 
 // LogRideParams defines parameters for LogRide.
 type LogRideParams struct {
-	// Timestamp the time at which the views is being recorded
+	// Timestamp the time at which the ride happened.
 	Timestamp time.Time `form:"timestamp" json:"timestamp"`
 }
 
@@ -171,7 +162,7 @@ type ClientInterface interface {
 	// LogRide log a single views on a coaster. must populate either name of coaster or coaster id.
 	//
 	// Corresponds with POST /log/{coasterID} (the `LogRide` operationId).
-	LogRide(ctx context.Context, coasterID UUID, params *LogRideParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+	LogRide(ctx context.Context, coasterID CoasterRef, params *LogRideParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListRides List logged rides, most recent first
 	//
@@ -212,7 +203,7 @@ func (c *Client) ListCredits(ctx context.Context, reqEditors ...RequestEditorFn)
 // LogRide log a single views on a coaster. must populate either name of coaster or coaster id.
 //
 // Corresponds with POST /log/{coasterID} (the `LogRide` operationId).
-func (c *Client) LogRide(ctx context.Context, coasterID UUID, params *LogRideParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) LogRide(ctx context.Context, coasterID CoasterRef, params *LogRideParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewLogRideRequest(c.Server, coasterID, params)
 	if err != nil {
 		return nil, err
@@ -317,12 +308,12 @@ func NewListCreditsRequest(server string) (*http.Request, error) {
 }
 
 // NewLogRideRequest constructs an http.Request for the LogRide method
-func NewLogRideRequest(server string, coasterID UUID, params *LogRideParams) (*http.Request, error) {
+func NewLogRideRequest(server string, coasterID CoasterRef, params *LogRideParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "coasterID", coasterID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "coasterID", coasterID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "", Format: ""})
 	if err != nil {
 		return nil, err
 	}
@@ -502,7 +493,7 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /log/{coasterID} (the `LogRide` operationId).
-	LogRideWithResponse(ctx context.Context, coasterID UUID, params *LogRideParams, reqEditors ...RequestEditorFn) (*LogRideResponse, error)
+	LogRideWithResponse(ctx context.Context, coasterID CoasterRef, params *LogRideParams, reqEditors ...RequestEditorFn) (*LogRideResponse, error)
 
 	// ListRidesWithResponse List logged rides, most recent first
 	//
@@ -516,11 +507,11 @@ type SearchCoasterResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSON200 the response for an HTTP 200 `application/json` response
-	JSON200 *Coasters
+	JSON200 *CoasterRefs
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
-func (r SearchCoasterResponse) GetJSON200() *Coasters {
+func (r SearchCoasterResponse) GetJSON200() *CoasterRefs {
 	return r.JSON200
 }
 
@@ -707,7 +698,7 @@ func (c *ClientWithResponses) ListCreditsWithResponse(ctx context.Context, reqEd
 // Returns a wrapper object for the known response body format(s).
 //
 // Corresponds with POST /log/{coasterID} (the `LogRide` operationId).
-func (c *ClientWithResponses) LogRideWithResponse(ctx context.Context, coasterID UUID, params *LogRideParams, reqEditors ...RequestEditorFn) (*LogRideResponse, error) {
+func (c *ClientWithResponses) LogRideWithResponse(ctx context.Context, coasterID CoasterRef, params *LogRideParams, reqEditors ...RequestEditorFn) (*LogRideResponse, error) {
 	rsp, err := c.LogRide(ctx, coasterID, params, reqEditors...)
 	if err != nil {
 		return nil, err
@@ -743,7 +734,7 @@ func ParseSearchCoasterResponse(rsp *http.Response) (*SearchCoasterResponse, err
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest Coasters
+		var dest CoasterRefs
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
