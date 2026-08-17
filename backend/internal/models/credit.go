@@ -46,7 +46,6 @@ func newCredit(events db.GetRideEventsRows) (*credit, error) {
 func (crd *credit) ToAPI() api.Credit {
 	return api.Credit{
 		Id:            crd.coasterID,
-		Name:          crd.coasterName,
 		FirstRiddenAt: crd.firstRiddenAt,
 		LastRiddenAt:  crd.lastRiddenAt,
 		RideCount:     crd.rideCount,
