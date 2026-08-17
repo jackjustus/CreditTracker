@@ -85,7 +85,7 @@ func listCredits(ctx context.Context, cmd *cli.Command) error {
 	return table([]string{"COASTER", "RIDES", "FIRST", "LAST"}, func(w *tabwriter.Writer) {
 		for _, credit := range *resp.JSON200 {
 			_, _ = fmt.Fprintf(w, "%s\t%d\t%s\t%s\n",
-				credit.Name,
+				credit.Id,
 				credit.RideCount,
 				credit.FirstRiddenAt.Format(time.DateOnly),
 				credit.LastRiddenAt.Format(time.DateOnly))
@@ -112,7 +112,7 @@ func listRides(ctx context.Context, cmd *cli.Command) error {
 		for _, ride := range *resp.JSON200 {
 			_, _ = fmt.Fprintf(w, "%s\t%s\n",
 				ride.RiddenAt.Format(time.RFC3339),
-				ride.Coaster.Name)
+				ride.Coaster.Id)
 		}
 	})
 }
@@ -136,7 +136,7 @@ func logRide(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	resp, err := c.LogRideWithResponse(ctx, coasterID, &client.LogRideParams{Timestamp: riddenAt})
+	resp, err := c.LogRideWithResponse(ctx, client.CoasterRef{Id: coasterID}, &client.LogRideParams{Timestamp: riddenAt})
 	if err != nil {
 		return err
 	}
@@ -148,7 +148,7 @@ func logRide(ctx context.Context, cmd *cli.Command) error {
 	return table([]string{"RIDDEN AT", "COASTER"}, func(w *tabwriter.Writer) {
 		_, _ = fmt.Fprintf(w, "%s\t%s\n",
 			ride.RiddenAt.Format(time.RFC3339),
-			ride.Coaster.Name)
+			ride.Coaster.Id)
 	})
 }
 
