@@ -10,7 +10,10 @@ RUN go mod download
 COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o /api-service ./cmd/api
-FROM build-stage AS run-test-stage
+
+# Opt-in stage: `docker build --target run-test-stage .`. Nothing depends on
+# it, so the default build prunes it rather than running the suite.
+FROM builder AS run-test-stage
 RUN go test -v ./...
 
 FROM golang:1.26 AS migrate

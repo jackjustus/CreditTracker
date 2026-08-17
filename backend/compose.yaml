@@ -39,6 +39,34 @@ services:
         condition: service_completed_successfully
     restart: "no"
 
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    volumes:
+      # nomic-embed-text is ~274MB. A volume keeps it across container
+      # replacement instead of re-downloading on every recreate.
+      - ollama:/root/.ollama
+    healthcheck:
+      # The image ships no curl. The CLI talks to the local daemon and exits
+      # non-zero until it is answering.
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
+  # One-shot: pulls the embedding model, then exits. api-service gates on it so
+  # the first search request cannot race the download.
+  ollama-pull:
+    image: ollama/ollama:latest
+    entrypoint: ["ollama", "pull", "nomic-embed-text"]
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: "no"
+
   api-service:
     build: .
     # `docker compose watch` rebuilds and recreates this service when Go source
@@ -56,18 +84,19 @@ services:
           path: ./go.sum
     environment:
       DATABASE_URL: postgres://postgres:testtest@db:5432/postgres?sslmode=disable
-      # Ollama runs natively on the host, not in a container: Docker Desktop on
-      # macOS has no GPU passthrough, so a containerized Ollama would be
-      # CPU-only. The host daemon must bind 0.0.0.0 (OLLAMA_HOST) to accept
-      # this; on loopback it only answers processes on the Mac itself.
-      OLLAMA_URL: http://host.docker.internal:11434
-    # Automatic on Docker Desktop; this makes it work on Linux hosts too.
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      # Ollama is containerised everywhere, dev included, so there is one code
+      # path instead of two. Inference is CPU-only on macOS (Docker Desktop has
+      # no GPU passthrough), which costs nothing that matters here: the request
+      # path embeds a single short query, not a corpus.
+      OLLAMA_URL: http://ollama:11434
+    # db carries this too; without it the API does not come back after a reboot.
+    restart: unless-stopped
     depends_on:
       migrate:
         condition: service_completed_successfully
       seed:
+        condition: service_completed_successfully
+      ollama-pull:
         condition: service_completed_successfully
     ports:
      - "8080:8080"
@@ -75,3 +104,4 @@ services:
 
 volumes:
   pgdata:
+  ollama:
