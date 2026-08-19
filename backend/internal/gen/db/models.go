@@ -23,6 +23,29 @@ type Coaster struct {
 	ProfileEmbedding      *pgvector.Vector
 	ProfileEmbeddingModel *string
 	ProfileEmbeddedAt     pgtype.Timestamptz
+	Height                *int32
+	Length                *int32
+	TopSpeedMph           *float64
+	InversionCount        *int32
+	CoasterStyleID        pgtype.UUID
+	OpeningDate           pgtype.Date
+	ClosingDate           pgtype.Date
+}
+
+type CoasterStyle struct {
+	CoasterStyleID uuid.UUID
+	ManufacturerID uuid.UUID
+	Material       string
+	SeatingStyle   string
+	Description    *string
+}
+
+type Manufacturer struct {
+	ManufacturerID uuid.UUID
+	Name           string
+	City           *string
+	State          *string
+	Country        string
 }
 
 type Park struct {
@@ -34,6 +57,7 @@ type Park struct {
 	ExternalSource *string
 	CreatedAt      pgtype.Timestamptz
 	UpdatedAt      pgtype.Timestamptz
+	State          *string
 }
 
 type RideEvent struct {

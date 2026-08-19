@@ -13,7 +13,7 @@ import (
 )
 
 const hydrateCoaster = `-- name: HydrateCoaster :one
-SELECT coasters.id, coasters.park_id, coasters.name, coasters.manufactured_at, coasters.external_id, coasters.external_source, coasters.created_at, coasters.updated_at, coasters.search_profile, coasters.profile_embedding, coasters.profile_embedding_model, coasters.profile_embedded_at
+SELECT coasters.id, coasters.park_id, coasters.name, coasters.manufactured_at, coasters.external_id, coasters.external_source, coasters.created_at, coasters.updated_at, coasters.search_profile, coasters.profile_embedding, coasters.profile_embedding_model, coasters.profile_embedded_at, coasters.height, coasters.length, coasters.top_speed_mph, coasters.inversion_count, coasters.coaster_style_id, coasters.opening_date, coasters.closing_date
 FROM coasters
 WHERE coasters.id = $1
 `
@@ -38,12 +38,19 @@ func (q *Queries) HydrateCoaster(ctx context.Context, id uuid.UUID) (HydrateCoas
 		&i.Coaster.ProfileEmbedding,
 		&i.Coaster.ProfileEmbeddingModel,
 		&i.Coaster.ProfileEmbeddedAt,
+		&i.Coaster.Height,
+		&i.Coaster.Length,
+		&i.Coaster.TopSpeedMph,
+		&i.Coaster.InversionCount,
+		&i.Coaster.CoasterStyleID,
+		&i.Coaster.OpeningDate,
+		&i.Coaster.ClosingDate,
 	)
 	return i, err
 }
 
 const listCoastersNeedingEmbedding = `-- name: ListCoastersNeedingEmbedding :many
-SELECT coasters.id, coasters.park_id, coasters.name, coasters.manufactured_at, coasters.external_id, coasters.external_source, coasters.created_at, coasters.updated_at, coasters.search_profile, coasters.profile_embedding, coasters.profile_embedding_model, coasters.profile_embedded_at, parks.id, parks.name, parks.city, parks.country, parks.external_id, parks.external_source, parks.created_at, parks.updated_at
+SELECT coasters.id, coasters.park_id, coasters.name, coasters.manufactured_at, coasters.external_id, coasters.external_source, coasters.created_at, coasters.updated_at, coasters.search_profile, coasters.profile_embedding, coasters.profile_embedding_model, coasters.profile_embedded_at, coasters.height, coasters.length, coasters.top_speed_mph, coasters.inversion_count, coasters.coaster_style_id, coasters.opening_date, coasters.closing_date, parks.id, parks.name, parks.city, parks.country, parks.external_id, parks.external_source, parks.created_at, parks.updated_at, parks.state
 FROM coasters
 JOIN parks ON parks.id = coasters.park_id
 WHERE coasters.profile_embedding IS NULL
@@ -89,6 +96,13 @@ func (q *Queries) ListCoastersNeedingEmbedding(ctx context.Context, arg ListCoas
 			&i.Coaster.ProfileEmbedding,
 			&i.Coaster.ProfileEmbeddingModel,
 			&i.Coaster.ProfileEmbeddedAt,
+			&i.Coaster.Height,
+			&i.Coaster.Length,
+			&i.Coaster.TopSpeedMph,
+			&i.Coaster.InversionCount,
+			&i.Coaster.CoasterStyleID,
+			&i.Coaster.OpeningDate,
+			&i.Coaster.ClosingDate,
 			&i.Park.ID,
 			&i.Park.Name,
 			&i.Park.City,
@@ -97,6 +111,7 @@ func (q *Queries) ListCoastersNeedingEmbedding(ctx context.Context, arg ListCoas
 			&i.Park.ExternalSource,
 			&i.Park.CreatedAt,
 			&i.Park.UpdatedAt,
+			&i.Park.State,
 		); err != nil {
 			return nil, err
 		}
@@ -109,7 +124,7 @@ func (q *Queries) ListCoastersNeedingEmbedding(ctx context.Context, arg ListCoas
 }
 
 const searchCoasters = `-- name: SearchCoasters :many
-SELECT coasters.id, coasters.park_id, coasters.name, coasters.manufactured_at, coasters.external_id, coasters.external_source, coasters.created_at, coasters.updated_at, coasters.search_profile, coasters.profile_embedding, coasters.profile_embedding_model, coasters.profile_embedded_at
+SELECT coasters.id, coasters.park_id, coasters.name, coasters.manufactured_at, coasters.external_id, coasters.external_source, coasters.created_at, coasters.updated_at, coasters.search_profile, coasters.profile_embedding, coasters.profile_embedding_model, coasters.profile_embedded_at, coasters.height, coasters.length, coasters.top_speed_mph, coasters.inversion_count, coasters.coaster_style_id, coasters.opening_date, coasters.closing_date
 FROM coasters
 WHERE profile_embedding IS NOT NULL
 ORDER BY profile_embedding <=> $1
@@ -149,6 +164,13 @@ func (q *Queries) SearchCoasters(ctx context.Context, arg SearchCoastersParams) 
 			&i.Coaster.ProfileEmbedding,
 			&i.Coaster.ProfileEmbeddingModel,
 			&i.Coaster.ProfileEmbeddedAt,
+			&i.Coaster.Height,
+			&i.Coaster.Length,
+			&i.Coaster.TopSpeedMph,
+			&i.Coaster.InversionCount,
+			&i.Coaster.CoasterStyleID,
+			&i.Coaster.OpeningDate,
+			&i.Coaster.ClosingDate,
 		); err != nil {
 			return nil, err
 		}
