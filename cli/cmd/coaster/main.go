@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackjustus/credittracker/cli/internal/gen/client"
+	"github.com/jackjustus/credittracker/cli/internal/tui"
 	"github.com/urfave/cli/v3"
 )
 
@@ -42,6 +43,18 @@ func main() {
 					},
 				},
 				Action: listRides,
+			},
+			{
+				Name:      "search",
+				Usage:     "search for a coaster and log a ride to it",
+				ArgsUsage: "[query]",
+				Flags: []cli.Flag{
+					&cli.BoolFlag{
+						Name:  "plain",
+						Usage: "print the matches and exit instead of opening the picker",
+					},
+				},
+				Action: searchCoasters,
 			},
 			{
 				Name:      "log",
@@ -117,6 +130,43 @@ func listRides(ctx context.Context, cmd *cli.Command) error {
 	})
 }
 
+// searchCoasters opens the interactive picker, or prints a plain table when
+// the caller asked for one or stdout is not a terminal (a pipe or a file).
+func searchCoasters(ctx context.Context, cmd *cli.Command) error {
+	// Args are joined so an unquoted multi-word query still works.
+	query := strings.Join(cmd.Args().Slice(), " ")
+
+	c, err := newClient(cmd)
+	if err != nil {
+		return err
+	}
+
+	if cmd.Bool("plain") || !isTerminal(os.Stdout) {
+		if query == "" {
+			return fmt.Errorf("usage: coaster search <query>")
+		}
+		return printMatches(ctx, c, query)
+	}
+
+	return tui.RunSearch(ctx, c, query)
+}
+
+func printMatches(ctx context.Context, c *client.ClientWithResponses, query string) error {
+	resp, err := c.SearchCoasterWithResponse(ctx, &client.SearchCoasterParams{Q: query})
+	if err != nil {
+		return err
+	}
+	if resp.JSON200 == nil {
+		return fmt.Errorf("searching coasters: %s", resp.Status())
+	}
+
+	return table([]string{"ID", "COASTER"}, func(w *tabwriter.Writer) {
+		for _, coaster := range *resp.JSON200 {
+			_, _ = fmt.Fprintf(w, "%s\t%s\n", coaster.Id, coaster.Name)
+		}
+	})
+}
+
 func logRide(ctx context.Context, cmd *cli.Command) error {
 	if cmd.NArg() != 1 {
 		return fmt.Errorf("usage: coaster log <coaster-id>")
@@ -154,6 +204,13 @@ func logRide(ctx context.Context, cmd *cli.Command) error {
 
 func newClient(cmd *cli.Command) (*client.ClientWithResponses, error) {
 	return client.NewClientWithResponses(cmd.Root().String("server"))
+}
+
+// isTerminal reports whether f is attached to a terminal rather than a pipe,
+// a file, or /dev/null.
+func isTerminal(f *os.File) bool {
+	info, err := f.Stat()
+	return err == nil && info.Mode()&os.ModeCharDevice != 0
 }
 
 func table(header []string, rows func(*tabwriter.Writer)) error {
