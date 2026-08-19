@@ -16,21 +16,22 @@ import (
 	"github.com/oapi-codegen/runtime"
 )
 
-// Coaster Reference to a coaster.
-type Coaster struct {
-	Id   UUID   `json:"id"`
-	Name string `json:"name"`
+// CoasterID defines model for CoasterID.
+type CoasterID struct {
+	Id UUID `json:"id"`
 }
 
-// Coasters defines model for Coasters.
-type Coasters = []Coaster
+// CoasterRef Reference to a coaster.
+type CoasterRef = CoasterID
 
-// Credit A coaster the rider has ridden at least once, aggregated over every ride of it. The id is the coaster's id.
+// CoasterRefs defines model for CoasterRefs.
+type CoasterRefs = []CoasterRef
+
+// Credit Information about aggregated ride events for a coaster
 type Credit struct {
 	FirstRiddenAt time.Time `json:"firstRiddenAt"`
 	Id            UUID      `json:"id"`
 	LastRiddenAt  time.Time `json:"lastRiddenAt"`
-	Name          string    `json:"name"`
 
 	// RideCount Number of logged rides on this coaster
 	RideCount int `json:"rideCount"`
@@ -42,8 +43,8 @@ type Credits = []Credit
 // Ride A single logged trip on a coaster.
 type Ride struct {
 	// Coaster Reference to a coaster.
-	Coaster  Coaster   `json:"coaster"`
-	RiddenAt time.Time `json:"riddenAt"`
+	Coaster  CoasterRef `json:"coaster"`
+	RiddenAt time.Time  `json:"riddenAt"`
 }
 
 // Rides defines model for Rides.
@@ -51,16 +52,6 @@ type Rides = []Ride
 
 // UUID defines model for UUID.
 type UUID = uuid.UUID
-
-// WithId defines model for WithId.
-type WithId struct {
-	Id UUID `json:"id"`
-}
-
-// WithName defines model for WithName.
-type WithName struct {
-	Name string `json:"name"`
-}
 
 // SearchCoasterParams defines parameters for SearchCoaster.
 type SearchCoasterParams struct {
@@ -70,7 +61,7 @@ type SearchCoasterParams struct {
 
 // LogRideParams defines parameters for LogRide.
 type LogRideParams struct {
-	// Timestamp the time at which the views is being recorded
+	// Timestamp the time at which the ride happened.
 	Timestamp time.Time `form:"timestamp" json:"timestamp"`
 }
 
@@ -93,7 +84,7 @@ type ServerInterface interface {
 	ListCredits(ctx echo.Context) error
 	// LogRide log a single views on a coaster. must populate either name of coaster or coaster id.
 	// (POST /log/{coasterID})
-	LogRide(ctx echo.Context, coasterID UUID, params LogRideParams) error
+	LogRide(ctx echo.Context, coasterID CoasterRef, params LogRideParams) error
 	// ListRides List logged rides, most recent first
 	// (GET /rides)
 	ListRides(ctx echo.Context, params ListRidesParams) error
@@ -135,9 +126,9 @@ func (w *ServerInterfaceWrapper) ListCredits(ctx echo.Context) error {
 func (w *ServerInterfaceWrapper) LogRide(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "coasterID" -------------
-	var coasterID UUID
+	var coasterID CoasterRef
 
-	err = runtime.BindStyledParameterWithOptions("simple", "coasterID", ctx.Param("coasterID"), &coasterID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: ctx.Request().URL.RawPath == ""})
+	err = runtime.BindStyledParameterWithOptions("simple", "coasterID", ctx.Param("coasterID"), &coasterID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "", Format: "", ValueIsUnescaped: ctx.Request().URL.RawPath == ""})
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter coasterID: %s", err))
 	}
@@ -243,7 +234,7 @@ type SearchCoasterResponseObject interface {
 	VisitSearchCoasterResponse(w http.ResponseWriter) error
 }
 
-type SearchCoaster200JSONResponse Coasters
+type SearchCoaster200JSONResponse CoasterRefs
 
 func (response SearchCoaster200JSONResponse) VisitSearchCoasterResponse(w http.ResponseWriter) error {
 
@@ -279,7 +270,7 @@ func (response ListCredits200JSONResponse) VisitListCreditsResponse(w http.Respo
 }
 
 type LogRideRequestObject struct {
-	CoasterID UUID `json:"coasterID"`
+	CoasterID CoasterRef `json:"coasterID"`
 	Params    LogRideParams
 }
 
@@ -400,7 +391,7 @@ func (sh *strictHandler) ListCredits(ctx echo.Context) error {
 }
 
 // LogRide operation middleware
-func (sh *strictHandler) LogRide(ctx echo.Context, coasterID UUID, params LogRideParams) error {
+func (sh *strictHandler) LogRide(ctx echo.Context, coasterID CoasterRef, params LogRideParams) error {
 	var request LogRideRequestObject
 
 	request.CoasterID = coasterID

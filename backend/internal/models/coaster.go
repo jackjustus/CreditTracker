@@ -25,18 +25,16 @@ func (c *Coaster) Name() string {
 	return c.name
 }
 
-func (c *Coaster) ToAPI() api.Coaster {
-	return api.Coaster{
-		Id:   c.id,
-		Name: c.name,
+func (c *Coaster) APIRef() api.CoasterRef {
+	return api.CoasterRef{
+		Id: c.id,
 	}
 }
 
 func (c *Coaster) ToRide(time time.Time) api.Ride {
 	return api.Ride{
-		Coaster: api.Coaster{
-			Id:   c.id,
-			Name: c.name,
+		Coaster: api.CoasterRef{
+			Id: c.id,
 		},
 		RiddenAt: time,
 	}
@@ -53,9 +51,9 @@ func NewCoaster(coaster db.Coaster) *Coaster {
 
 type Coasters []*Coaster
 
-func (cs Coasters) ToAPI() api.Coasters {
-	return slices.Map(cs, func(c *Coaster) api.Coaster {
-		return c.ToAPI()
+func (cs Coasters) ToAPI() api.CoasterRefs {
+	return slices.Map(cs, func(c *Coaster) api.CoasterRef {
+		return c.APIRef()
 	})
 }
 
