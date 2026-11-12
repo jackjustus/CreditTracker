@@ -5,6 +5,11 @@ INSERT INTO users (id, name) VALUES
     ('00000000-0000-0000-0000-000000000001', 'localuser')
 ON CONFLICT (id) DO NOTHING;
 
+-- Park/coaster catalog (with embeddings), dumped from a Wikidata-ingested DB:
+--   pg_dump --data-only --column-inserts --on-conflict-do-nothing \
+--     --table=manufacturers --table=coaster_styles --table=parks --table=coasters
+\ir catalog.sql
+
 -- INSERT INTO parks (id, name, city, country) VALUES
 --     ('019fca53-0b17-7862-9c0a-706d42fb5aab',
 --      'Disneyland',
