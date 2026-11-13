@@ -16,11 +16,17 @@ import (
 	"github.com/oapi-codegen/runtime"
 )
 
+// City defines model for City.
+type City = string
+
 // Coaster Rich information about a coaster
 type Coaster struct {
 	Id             UUID                  `json:"id"`
 	ManufacturedAt CoasterManufacturedAt `json:"manufacturedAt,omitempty,omitzero"`
 	Name           CoasterName           `json:"name"`
+
+	// Park Rich information about a park.
+	Park Park `json:"park"`
 }
 
 // CoasterID defines model for CoasterID.
@@ -40,6 +46,9 @@ type CoasterRef = CoasterID
 // Coasters defines model for Coasters.
 type Coasters = []Coaster
 
+// Country defines model for Country.
+type Country = string
+
 // Credit Information about aggregated ride events for a coaster
 type Credit struct {
 	FirstRiddenAt time.Time `json:"firstRiddenAt"`
@@ -52,6 +61,25 @@ type Credit struct {
 
 // Credits defines model for Credits.
 type Credits = []Credit
+
+// Park Rich information about a park.
+type Park struct {
+	City    *City    `json:"city,omitempty"`
+	Country *Country `json:"country,omitempty"`
+	Id      UUID     `json:"id"`
+	Name    ParkName `json:"name"`
+}
+
+// ParkID defines model for ParkID.
+type ParkID struct {
+	Id UUID `json:"id"`
+}
+
+// ParkName defines model for ParkName.
+type ParkName = string
+
+// ParkRef Reference to a park.
+type ParkRef = ParkID
 
 // Ride A single logged trip on a coaster.
 type Ride struct {

@@ -122,13 +122,13 @@ components:
       properties:
         id:
           $ref: "#/components/schemas/UUID"
-    WithName:
-      type: object
-      required:
-        - name
-      properties:
-        name:
-          type: string
+    ParkName:
+      type: string
+    City:
+      type: string
+    Country:
+      type: string
+
     UUID:
       type: string
       format: uuid
@@ -147,6 +147,7 @@ components:
         - type: object
           required:
             - name
+            - park
           properties:
             name:
               $ref: "#/components/schemas/CoasterName"
@@ -154,6 +155,8 @@ components:
               $ref: "#/components/schemas/CoasterManufacturedAt"
               x-omitzero: true
               x-go-type-skip-optional-pointer: true
+            park:
+              $ref: "#/components/schemas/Park"
     Coasters:
       type: array
       items:
@@ -166,6 +169,21 @@ components:
       type: array
       items:
         $ref: "#/components/schemas/CoasterRef"
+
+    Park:
+      description: Rich information about a park.
+      allOf:
+        - $ref: "#/components/schemas/ParkRef"
+        - type: object
+          required:
+            - name
+          properties:
+            name:
+              $ref: "#/components/schemas/ParkName"
+            city:
+              $ref: "#/components/schemas/City"
+            country:
+              $ref: "#/components/schemas/Country"
 
     ParkRef:
       description: Reference to a park.
