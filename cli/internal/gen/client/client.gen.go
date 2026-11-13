@@ -65,8 +65,8 @@ type Credits = []Credit
 
 // Park Rich information about a park.
 type Park struct {
-	City    *City    `json:"city,omitempty"`
-	Country *Country `json:"country,omitempty"`
+	City    City     `json:"city,omitempty,omitzero"`
+	Country Country  `json:"country,omitempty,omitzero"`
 	Id      UUID     `json:"id"`
 	Name    ParkName `json:"name"`
 }

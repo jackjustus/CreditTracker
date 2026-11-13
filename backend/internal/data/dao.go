@@ -65,7 +65,7 @@ func (dao *DAO) ListEmbeddingTargets(ctx context.Context, model string, limit in
 
 // SearchCoasters returns the coasters whose embeddings sit closest to the given query vector.
 // The caller supplies an already embedded query.
-func (dao *DAO) SearchCoasters(ctx context.Context, query []float32, limit int32) (models.Coasters, error) {
+func (dao *DAO) SearchCoasters(ctx context.Context, query []float32, limit int32) (models.CoastersWithPark, error) {
 	embedding := pgvector.NewVector(query)
 	rows, err := dao.dbc.SearchCoasters(ctx, db.SearchCoastersParams{
 		QueryEmbedding: &embedding,
@@ -75,8 +75,8 @@ func (dao *DAO) SearchCoasters(ctx context.Context, query []float32, limit int32
 		return nil, err
 	}
 
-	return slices.Map(rows, func(row db.SearchCoastersRow) *models.Coaster {
-		return models.NewCoaster(row.Coaster)
+	return slices.Map(rows, func(row db.SearchCoastersRow) *models.CoasterWithPark {
+		return models.NewCoasterWithParkFromDB(row.Coaster)
 	}), nil
 }
 

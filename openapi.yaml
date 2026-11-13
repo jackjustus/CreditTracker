@@ -182,8 +182,12 @@ components:
               $ref: "#/components/schemas/ParkName"
             city:
               $ref: "#/components/schemas/City"
+              x-omitzero: true
+              x-go-type-skip-optional-pointer: true
             country:
               $ref: "#/components/schemas/Country"
+              x-omitzero: true
+              x-go-type-skip-optional-pointer: true
 
     ParkRef:
       description: Reference to a park.

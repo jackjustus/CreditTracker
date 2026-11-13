@@ -70,12 +70,43 @@ type CoasterWithPark struct {
 	park    *Park
 }
 
-func (c *CoasterWithPark) Coaster() *Coaster {
-	return c.coaster
+type CoastersWithPark []*CoasterWithPark
+
+func (cwp *CoasterWithPark) Coaster() *Coaster {
+	return cwp.coaster
 }
 
-func (c *CoasterWithPark) Park() *Park {
-	return c.park
+func (cwp *CoasterWithPark) Park() *Park {
+	return cwp.park
+}
+
+func (cwp *CoasterWithPark) ToAPI() api.Coaster {
+	return api.Coaster{
+		Id:             cwp.coaster.id,
+		ManufacturedAt: cwp.coaster.manufacturedAt,
+		Name:           cwp.coaster.name,
+		Park: api.Park{
+			City:    cwp.park.city,
+			Country: cwp.park.country,
+			Id:      cwp.park.id,
+			Name:    cwp.park.name,
+		},
+	}
+}
+
+func (cpws CoastersWithPark) ToAPI() api.Coasters {
+	return slices.Map(cpws, func(cwp *CoasterWithPark) api.Coaster {
+		return cwp.ToAPI()
+	})
+}
+
+func NewCoasterWithParkFromDB(coaster db.Coaster) *CoasterWithPark {
+	return &CoasterWithPark{
+		coaster: NewCoaster(coaster),
+		park: &Park{
+			id: coaster.ParkID,
+		},
+	}
 }
 
 func NewCoasterWithPark(coaster *Coaster, park *Park) (*CoasterWithPark, error) {
