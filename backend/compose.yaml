@@ -29,6 +29,9 @@ services:
   seed:
     image: postgres:18
     environment:
+      PGHOST: db
+      PGUSER: postgres
+      PGDATABASE: postgres
       PGPASSWORD: testtest
     volumes:
       - ./db/seed:/seed:ro
