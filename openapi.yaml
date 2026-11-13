@@ -95,7 +95,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CoasterRefs"
+                $ref: "#/components/schemas/Coasters"
 
 components:
   schemas:
@@ -144,8 +144,20 @@ components:
       description: Rich information about a coaster
       allOf:
         - $ref: "#/components/schemas/CoasterRef"
-        - $ref: "#/components/schemas/CoasterName"
-        - $ref: "#/components/schemas/CoasterManufacturedAt"
+        - type: object
+          required:
+            - name
+          properties:
+            name:
+              $ref: "#/components/schemas/CoasterName"
+            manufacturedAt:
+              $ref: "#/components/schemas/CoasterManufacturedAt"
+              x-omitzero: true
+              x-go-type-skip-optional-pointer: true
+    Coasters:
+      type: array
+      items:
+        $ref: "#/components/schemas/Coaster"
     CoasterRef:
       description: Reference to a coaster.
       allOf:
