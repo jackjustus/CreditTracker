@@ -1,6 +1,6 @@
 module github.com/jackjustus/credittracker/cli
 
-go 1.26
+go 1.27.0
 
 require (
 	github.com/charmbracelet/bubbles v1.0.0

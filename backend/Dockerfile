@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM golang:1.26 AS builder
+FROM golang:1.27 AS builder
 
 WORKDIR /app
 
@@ -16,7 +16,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /api-service ./cmd/api
 FROM builder AS run-test-stage
 RUN go test -v ./...
 
-FROM golang:1.26 AS migrate
+FROM golang:1.27 AS migrate
 
 # Build tags drop every driver but postgres; the default build pulls in
 # clickhouse, sqlite, mssql and vertica.
