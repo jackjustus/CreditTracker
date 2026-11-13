@@ -12,7 +12,7 @@ export GOOSE_DRIVER := postgres
 export GOOSE_DBSTRING := $(DATABASE_URL)
 export GOOSE_MIGRATION_DIR := backend/db/migrations
 
-.PHONY: help api rebuild-api watch-api stop-api logs psql install tools generate build check test lint verify-gen migration
+.PHONY: help api rebuild-api watch-api stop-api logs psql seed install tools generate build check test lint verify-gen migration
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  \033[36m%-11s\033[0m %s\n", $$1, $$2}'
@@ -34,6 +34,9 @@ logs: ## Follow the API logs
 
 psql: ## Open a psql shell
 	$(COMPOSE) exec db psql -U postgres
+
+seed: ## Re-apply backend/db/seed/seed.sql (idempotent; `make api` seeds only an empty DB)
+	$(COMPOSE) exec -T db psql -U postgres -v ON_ERROR_STOP=1 --single-transaction < backend/db/seed/seed.sql
 
 install: ## Install the coaster CLI to $$GOPATH/bin
 	cd cli && go install ./cmd/coaster

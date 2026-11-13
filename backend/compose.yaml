@@ -32,8 +32,15 @@ services:
       PGPASSWORD: testtest
     volumes:
       - ./db/seed:/seed:ro
-    command: >
-      psql -h db -U postgres -d postgres -v ON_ERROR_STOP=1 -f /seed/seed.sql
+    command:
+      - sh
+      - -ec
+      - |
+        if [ "$$(psql -tAc 'SELECT EXISTS (SELECT 1 FROM users) OR EXISTS (SELECT 1 FROM parks)')" = t ]; then
+          echo "database already has data; skipping seed (run 'make seed' to re-apply)"
+        else
+          psql -v ON_ERROR_STOP=1 --single-transaction -f /seed/seed.sql
+        fi
     depends_on:
       migrate:
         condition: service_completed_successfully
