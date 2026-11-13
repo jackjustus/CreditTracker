@@ -3,11 +3,13 @@ package tui
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/google/uuid"
 	"github.com/jackjustus/credittracker/cli/internal/gen/client"
 )
@@ -199,6 +201,69 @@ func TestSeededQuerySearchesImmediately(t *testing.T) {
 	}
 	if len(m.coasters) != 1 {
 		t.Errorf("coasters = %d, want 1", len(m.coasters))
+	}
+}
+
+func manyCoasters(n int) []client.Coaster {
+	cs := make([]client.Coaster, n)
+	for i := range cs {
+		cs[i] = client.Coaster{Id: uuid.New(), Name: fmt.Sprintf("Coaster %02d", i)}
+	}
+	return cs
+}
+
+// Bubble Tea drops the top of a frame taller than the terminal, so a view that
+// overflows hides the query line first.
+func TestShortTerminalKeepsQueryVisible(t *testing.T) {
+	f := &fakeSearcher{coasters: manyCoasters(10)}
+	m := newModel(t.Context(), f, "kingda ka")
+	m, _ = update(t, m, tea.WindowSizeMsg{Width: 80, Height: 10})
+	m, _ = update(t, m, search(t.Context(), f, m.gen, m.query)())
+
+	view := m.View()
+	if lines := strings.Count(view, "\n") + 1; lines > 10 {
+		t.Errorf("view is %d lines, taller than the 10-line terminal:\n%s", lines, view)
+	}
+	if !strings.Contains(view, "> kingda ka") {
+		t.Errorf("view does not show the query:\n%s", view)
+	}
+}
+
+func TestCursorScrollsThroughResults(t *testing.T) {
+	f := &fakeSearcher{coasters: manyCoasters(10)}
+	m := newModel(t.Context(), f, "kingda ka")
+	m, _ = update(t, m, tea.WindowSizeMsg{Width: 80, Height: 10}) // 4 result rows
+	m, _ = update(t, m, search(t.Context(), f, m.gen, m.query)())
+
+	for range 9 {
+		m, _ = update(t, m, tea.KeyMsg{Type: tea.KeyDown})
+	}
+	view := m.View()
+	if !strings.Contains(view, "Coaster 09") || strings.Contains(view, "Coaster 05") {
+		t.Errorf("bottom of the list is not scrolled into view:\n%s", view)
+	}
+	if !strings.Contains(view, "10/10") {
+		t.Errorf("view does not show the position in the list:\n%s", view)
+	}
+
+	for range 9 {
+		m, _ = update(t, m, tea.KeyMsg{Type: tea.KeyUp})
+	}
+	if view := m.View(); !strings.Contains(view, "Coaster 00") {
+		t.Errorf("top of the list is not scrolled back into view:\n%s", view)
+	}
+}
+
+func TestLongNamesDoNotWrap(t *testing.T) {
+	f := &fakeSearcher{coasters: []client.Coaster{{Id: uuid.New(), Name: strings.Repeat("x", 100)}}}
+	m := newModel(t.Context(), f, "kingda ka")
+	m, _ = update(t, m, tea.WindowSizeMsg{Width: 40, Height: 20})
+	m, _ = update(t, m, search(t.Context(), f, m.gen, m.query)())
+
+	for _, line := range strings.Split(m.View(), "\n") {
+		if w := lipgloss.Width(line); w > 40 {
+			t.Errorf("line is %d columns wide, wider than the 40-column terminal: %q", w, line)
+		}
 	}
 }
 

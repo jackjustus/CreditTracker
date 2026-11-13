@@ -57,6 +57,12 @@ type model struct {
 	input    textinput.Model
 	coasters []client.Coaster
 	cursor   int
+	// offset is the first result on screen when they do not all fit.
+	offset int
+
+	// width and height are the terminal size; zero until the first
+	// WindowSizeMsg, which means "unbounded".
+	width, height int
 
 	// gen increments on every edit so replies to superseded queries are dropped.
 	gen       int
@@ -98,6 +104,13 @@ func (m model) Init() tea.Cmd {
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width, m.height = msg.Width, msg.Height
+		// Scroll a long query sideways instead of wrapping it: prompt + cursor.
+		m.input.Width = max(msg.Width-lipgloss.Width(m.input.Prompt)-1, 1)
+		m.scrollToCursor()
+		return m, nil
+
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyCtrlC, tea.KeyEsc:
@@ -106,11 +119,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.cursor > 0 {
 				m.cursor--
 			}
+			m.scrollToCursor()
 			return m, nil
 		case tea.KeyDown, tea.KeyCtrlN:
 			if m.cursor < len(m.coasters)-1 {
 				m.cursor++
 			}
+			m.scrollToCursor()
 			return m, nil
 		case tea.KeyEnter:
 			if m.cursor >= len(m.coasters) {
@@ -142,6 +157,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.cursor >= len(m.coasters) {
 				m.cursor = max(len(m.coasters)-1, 0)
 			}
+			m.scrollToCursor()
 		}
 		return m, nil
 
@@ -163,7 +179,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.gen++
 		m.searchErr = nil
 		if q == "" {
-			m.coasters, m.cursor, m.inflight = nil, 0, false
+			m.coasters, m.cursor, m.offset, m.inflight = nil, 0, 0, false
 			return m, cmd
 		}
 		return m, tea.Batch(cmd, debounce(m.gen))
@@ -171,46 +187,81 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m model) View() string {
-	var b strings.Builder
+// chromeLines is every line View draws besides the results: title, blank,
+// input, blank, blank, footer.
+const chromeLines = 6
 
-	b.WriteString(titleStyle.Render("coaster search"))
-	b.WriteString("\n\n")
-	b.WriteString(m.input.View())
-	b.WriteString("\n\n")
+// resultRows is how many results fit on screen. Bubble Tea drops the top of a
+// frame taller than the terminal, which would hide the query, so the list
+// gives way instead.
+func (m model) resultRows() int {
+	if m.height == 0 {
+		return len(m.coasters)
+	}
+	return max(m.height-chromeLines, 1)
+}
+
+// scrollToCursor moves the visible window just enough to keep the cursor in it.
+func (m *model) scrollToCursor() {
+	rows := m.resultRows()
+	switch {
+	case m.cursor < m.offset:
+		m.offset = m.cursor
+	case m.cursor >= m.offset+rows:
+		m.offset = m.cursor - rows + 1
+	}
+	m.offset = max(min(m.offset, len(m.coasters)-rows), 0)
+}
+
+func (m model) View() string {
+	lines := []string{
+		titleStyle.Render("coaster search"),
+		"",
+		m.input.View(),
+		"",
+	}
 
 	switch {
 	case m.searchErr != nil:
-		b.WriteString(errorStyle.Render("  " + m.searchErr.Error()))
+		lines = append(lines, errorStyle.Render("  "+m.searchErr.Error()))
 	case m.query == "":
-		b.WriteString(dimStyle.Render("  type to search"))
+		lines = append(lines, dimStyle.Render("  type to search"))
 	case len(m.coasters) == 0 && m.inflight:
-		b.WriteString(dimStyle.Render("  searching…"))
+		lines = append(lines, dimStyle.Render("  searching…"))
 	case len(m.coasters) == 0:
-		b.WriteString(dimStyle.Render("  no matches"))
+		lines = append(lines, dimStyle.Render("  no matches"))
 	default:
-		for i, c := range m.coasters {
+		// A wrapped name would take two rows and push the query off the top.
+		row := lipgloss.NewStyle()
+		if m.width > 0 {
+			row = row.MaxWidth(m.width)
+		}
+		end := min(m.offset+m.resultRows(), len(m.coasters))
+		for i := m.offset; i < end; i++ {
+			name := m.coasters[i].Name
 			if i == m.cursor {
-				b.WriteString(selectedStyle.Render("❯ " + c.Name))
+				lines = append(lines, row.Render(selectedStyle.Render("❯ "+name)))
 			} else {
-				b.WriteString("  " + c.Name)
+				lines = append(lines, row.Render("  "+name))
 			}
-			b.WriteByte('\n')
 		}
 	}
 
-	b.WriteString("\n\n")
+	lines = append(lines, "")
 	switch {
 	case m.logErr != nil:
-		b.WriteString(errorStyle.Render("  " + m.logErr.Error()))
+		lines = append(lines, errorStyle.Render("  "+m.logErr.Error()))
 	case m.logged != "":
-		b.WriteString(okStyle.Render("  ✓ " + m.logged))
+		lines = append(lines, okStyle.Render("  ✓ "+m.logged))
 	default:
-		b.WriteString(dimStyle.Render("  ↑/↓ move · enter log a ride · esc quit"))
+		help := "  ↑/↓ move · enter log a ride · esc quit"
+		if n := len(m.coasters); m.resultRows() < n {
+			help = fmt.Sprintf("  %d/%d · ↑/↓ move · enter log a ride · esc quit", m.cursor+1, n)
+		}
+		lines = append(lines, dimStyle.Render(help))
 	}
-	b.WriteByte('\n')
 
-	return b.String()
+	return strings.Join(lines, "\n")
 }
 
 // debounce waits out searchDebounce before letting generation gen search.
