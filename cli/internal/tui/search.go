@@ -29,7 +29,7 @@ var (
 // Searcher is the slice of the generated client the search TUI needs.
 type Searcher interface {
 	SearchCoasterWithResponse(ctx context.Context, params *client.SearchCoasterParams, reqEditors ...client.RequestEditorFn) (*client.SearchCoasterResponse, error)
-	LogRideWithResponse(ctx context.Context, coasterID client.UUID, params *client.LogRideParams, reqEditors ...client.RequestEditorFn) (*client.LogRideResponse, error)
+	LogRideWithResponse(ctx context.Context, coaster client.CoasterRef, params *client.LogRideParams, reqEditors ...client.RequestEditorFn) (*client.LogRideResponse, error)
 }
 
 // debouncedMsg fires once typing has been idle for searchDebounce.
@@ -44,6 +44,8 @@ type resultsMsg struct {
 
 // loggedMsg carries the outcome of one ride log.
 type loggedMsg struct {
+	// name comes from the selected result: Ride only carries a coaster ref.
+	name string
 	ride client.Ride
 	err  error
 }
@@ -149,7 +151,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.logged = fmt.Sprintf("logged %s at %s",
-			msg.ride.Coaster.Name, msg.ride.RiddenAt.Local().Format("Jan 2 15:04"))
+			msg.name, msg.ride.RiddenAt.Local().Format("Jan 2 15:04"))
 		return m, nil
 	}
 
@@ -233,13 +235,13 @@ func search(ctx context.Context, c Searcher, gen int, query string) tea.Cmd {
 
 func logRide(ctx context.Context, c Searcher, coaster client.Coaster) tea.Cmd {
 	return func() tea.Msg {
-		resp, err := c.LogRideWithResponse(ctx, coaster.Id, &client.LogRideParams{Timestamp: time.Now()})
+		resp, err := c.LogRideWithResponse(ctx, client.CoasterRef{Id: coaster.Id}, &client.LogRideParams{Timestamp: time.Now()})
 		switch {
 		case err != nil:
 			return loggedMsg{err: err}
 		case resp.JSON200 == nil:
 			return loggedMsg{err: fmt.Errorf("logging ride: %s", resp.Status())}
 		}
-		return loggedMsg{ride: *resp.JSON200}
+		return loggedMsg{name: coaster.Name, ride: *resp.JSON200}
 	}
 }

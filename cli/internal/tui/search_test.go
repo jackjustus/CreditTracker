@@ -32,13 +32,13 @@ func (f *fakeSearcher) SearchCoasterWithResponse(_ context.Context, params *clie
 	}, nil
 }
 
-func (f *fakeSearcher) LogRideWithResponse(_ context.Context, coasterID client.UUID, params *client.LogRideParams, _ ...client.RequestEditorFn) (*client.LogRideResponse, error) {
-	f.logged = append(f.logged, coasterID)
+func (f *fakeSearcher) LogRideWithResponse(_ context.Context, coaster client.CoasterRef, params *client.LogRideParams, _ ...client.RequestEditorFn) (*client.LogRideResponse, error) {
+	f.logged = append(f.logged, coaster.Id)
 	if f.err != nil {
 		return nil, f.err
 	}
 	ride := client.Ride{
-		Coaster:  client.Coaster{Id: coasterID, Name: "Kingda Ka"},
+		Coaster:  coaster,
 		RiddenAt: params.Timestamp,
 	}
 	return &client.LogRideResponse{
