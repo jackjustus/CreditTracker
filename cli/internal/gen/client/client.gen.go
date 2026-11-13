@@ -17,16 +17,29 @@ import (
 	"github.com/oapi-codegen/runtime"
 )
 
+// Coaster Rich information about a coaster
+type Coaster struct {
+	Id             UUID                  `json:"id"`
+	ManufacturedAt CoasterManufacturedAt `json:"manufacturedAt,omitempty,omitzero"`
+	Name           CoasterName           `json:"name"`
+}
+
 // CoasterID defines model for CoasterID.
 type CoasterID struct {
 	Id UUID `json:"id"`
 }
 
+// CoasterManufacturedAt defines model for CoasterManufacturedAt.
+type CoasterManufacturedAt = time.Time
+
+// CoasterName defines model for CoasterName.
+type CoasterName = string
+
 // CoasterRef Reference to a coaster.
 type CoasterRef = CoasterID
 
-// CoasterRefs defines model for CoasterRefs.
-type CoasterRefs = []CoasterRef
+// Coasters defines model for Coasters.
+type Coasters = []Coaster
 
 // Credit Information about aggregated ride events for a coaster
 type Credit struct {
@@ -507,11 +520,11 @@ type SearchCoasterResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSON200 the response for an HTTP 200 `application/json` response
-	JSON200 *CoasterRefs
+	JSON200 *Coasters
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
-func (r SearchCoasterResponse) GetJSON200() *CoasterRefs {
+func (r SearchCoasterResponse) GetJSON200() *Coasters {
 	return r.JSON200
 }
 
@@ -734,7 +747,7 @@ func ParseSearchCoasterResponse(rsp *http.Response) (*SearchCoasterResponse, err
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest CoasterRefs
+		var dest Coasters
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

@@ -16,16 +16,29 @@ import (
 	"github.com/oapi-codegen/runtime"
 )
 
+// Coaster Rich information about a coaster
+type Coaster struct {
+	Id             UUID                  `json:"id"`
+	ManufacturedAt CoasterManufacturedAt `json:"manufacturedAt,omitempty,omitzero"`
+	Name           CoasterName           `json:"name"`
+}
+
 // CoasterID defines model for CoasterID.
 type CoasterID struct {
 	Id UUID `json:"id"`
 }
 
+// CoasterManufacturedAt defines model for CoasterManufacturedAt.
+type CoasterManufacturedAt = time.Time
+
+// CoasterName defines model for CoasterName.
+type CoasterName = string
+
 // CoasterRef Reference to a coaster.
 type CoasterRef = CoasterID
 
-// CoasterRefs defines model for CoasterRefs.
-type CoasterRefs = []CoasterRef
+// Coasters defines model for Coasters.
+type Coasters = []Coaster
 
 // Credit Information about aggregated ride events for a coaster
 type Credit struct {
@@ -234,7 +247,7 @@ type SearchCoasterResponseObject interface {
 	VisitSearchCoasterResponse(w http.ResponseWriter) error
 }
 
-type SearchCoaster200JSONResponse CoasterRefs
+type SearchCoaster200JSONResponse Coasters
 
 func (response SearchCoaster200JSONResponse) VisitSearchCoasterResponse(w http.ResponseWriter) error {
 
